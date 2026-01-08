@@ -1,55 +1,58 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import type { User, UserRole } from '@/types';
-import { usuarios } from '@/data/mockData';
+/**
+ * Authentication Context
+ * 
+ * Provides authentication state and utilities throughout the app.
+ * Refactored to use real API via React Query hooks.
+ */
+
+import React, { createContext, useContext, useCallback, useMemo } from 'react';
+import { useCurrentUser, useLogout, hasRole, hasAccessToStore, getHighestRole } from '@/hooks/api/use-auth';
+import type { User, UserRole } from '@/types/api';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
-  switchRole: (role: UserRole) => void; // Dev only
+  isLoading: boolean;
   isAuthenticated: boolean;
+  logout: () => void;
+  hasRole: (role: UserRole) => boolean;
+  hasAccessToStore: (storeId: number) => boolean;
+  highestRole: UserRole | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    // Mock: Inicia com vendedor para demonstração
-    return usuarios.find(u => u.role === 'vendedor') || null;
-  });
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
 
-  const login = useCallback(async (email: string, _password: string): Promise<boolean> => {
-    // Mock login
-    const foundUser = usuarios.find(u => u.email === email);
-    if (foundUser) {
-      setUser(foundUser);
-      return true;
-    }
-    return false;
-  }, []);
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const { data: user, isLoading, isError } = useCurrentUser();
+  const logoutMutation = useLogout();
 
-  const logout = useCallback(() => {
-    setUser(null);
-  }, []);
+  const handleLogout = useCallback(() => {
+    logoutMutation.mutate();
+  }, [logoutMutation]);
 
-  // Dev only: permite trocar de role para testar
-  const switchRole = useCallback((role: UserRole) => {
-    const userWithRole = usuarios.find(u => u.role === role);
-    if (userWithRole) {
-      setUser(userWithRole);
-    }
-  }, []);
+  const checkHasRole = useCallback((role: UserRole): boolean => {
+    return hasRole(user, role);
+  }, [user]);
+
+  const checkHasAccessToStore = useCallback((storeId: number): boolean => {
+    return hasAccessToStore(user, storeId);
+  }, [user]);
+
+  const value = useMemo<AuthContextType>(() => ({
+    user: user ?? null,
+    isLoading,
+    isAuthenticated: !!user && !isError,
+    logout: handleLogout,
+    hasRole: checkHasRole,
+    hasAccessToStore: checkHasAccessToStore,
+    highestRole: getHighestRole(user) as UserRole | null,
+  }), [user, isLoading, isError, handleLogout, checkHasRole, checkHasAccessToStore]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        logout,
-        switchRole,
-        isAuthenticated: !!user,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

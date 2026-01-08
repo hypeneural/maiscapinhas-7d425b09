@@ -8,6 +8,13 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/api': {
+        target: 'https://api.maiscapinhas.com.br',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
@@ -16,3 +23,4 @@ export default defineConfig(({ mode }) => ({
     },
   },
 }));
+
