@@ -86,6 +86,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Metas Mensais', icon: Target, path: '/config/metas' },
       { label: 'Tabela de Bônus', icon: Gift, path: '/config/bonus' },
+      { label: 'Regras de Comissão', icon: TrendingUp, path: '/config/comissoes' },
       { label: 'Usuários & Lojas', icon: Users, path: '/config/usuarios' },
     ],
   },

@@ -8,9 +8,17 @@ import { MainLayout } from "@/layouts/MainLayout";
 import Dashboard from "@/pages/Dashboard";
 import LancarTurno from "@/pages/conferencia/LancarTurno";
 import Divergencias from "@/pages/conferencia/Divergencias";
+import HistoricoEnvelopes from "@/pages/conferencia/HistoricoEnvelopes";
 import ExtratoVendas from "@/pages/faturamento/ExtratoVendas";
 import MeusBonus from "@/pages/faturamento/MeusBonus";
 import MinhasComissoes from "@/pages/faturamento/MinhasComissoes";
+import RankingVendas from "@/pages/gestao/RankingVendas";
+import DesempenhoLojas from "@/pages/gestao/DesempenhoLojas";
+import QuebraCaixa from "@/pages/gestao/QuebraCaixa";
+import MetasMensais from "@/pages/config/MetasMensais";
+import TabelaBonus from "@/pages/config/TabelaBonus";
+import RegrasComissao from "@/pages/config/RegrasComissao";
+import UsuariosLojas from "@/pages/config/UsuariosLojas";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,17 +42,18 @@ const App = () => (
               <Route path="/conferencia" element={<Navigate to="/conferencia/lancar" replace />} />
               <Route path="/conferencia/lancar" element={<LancarTurno />} />
               <Route path="/conferencia/divergencias" element={<Divergencias />} />
-              <Route path="/conferencia/historico" element={<LancarTurno />} />
+              <Route path="/conferencia/historico" element={<HistoricoEnvelopes />} />
               {/* Gestão */}
               <Route path="/gestao" element={<Navigate to="/gestao/ranking" replace />} />
-              <Route path="/gestao/ranking" element={<Dashboard />} />
-              <Route path="/gestao/lojas" element={<Dashboard />} />
-              <Route path="/gestao/quebra" element={<Dashboard />} />
+              <Route path="/gestao/ranking" element={<RankingVendas />} />
+              <Route path="/gestao/lojas" element={<DesempenhoLojas />} />
+              <Route path="/gestao/quebra" element={<QuebraCaixa />} />
               {/* Config */}
               <Route path="/config" element={<Navigate to="/config/metas" replace />} />
-              <Route path="/config/metas" element={<Dashboard />} />
-              <Route path="/config/bonus" element={<Dashboard />} />
-              <Route path="/config/usuarios" element={<Dashboard />} />
+              <Route path="/config/metas" element={<MetasMensais />} />
+              <Route path="/config/bonus" element={<TabelaBonus />} />
+              <Route path="/config/comissoes" element={<RegrasComissao />} />
+              <Route path="/config/usuarios" element={<UsuariosLojas />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
