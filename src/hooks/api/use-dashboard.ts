@@ -7,7 +7,7 @@
 import { useQuery } from '@tanstack/react-query';
 import {
     getSellerDashboard,
-    getStoreDashboard,
+    getConferenteDashboard,
     getAdminDashboard
 } from '@/services/dashboard.service';
 
@@ -17,7 +17,7 @@ import {
 export const dashboardKeys = {
     all: ['dashboard'] as const,
     seller: (storeId?: number) => [...dashboardKeys.all, 'seller', storeId] as const,
-    store: (storeId?: number) => [...dashboardKeys.all, 'store', storeId] as const,
+    conferente: (storeId?: number) => [...dashboardKeys.all, 'conferente', storeId] as const,
     admin: () => [...dashboardKeys.all, 'admin'] as const,
 };
 
@@ -34,12 +34,12 @@ export function useSellerDashboard(storeId?: number) {
 }
 
 /**
- * Hook to get store dashboard
+ * Hook to get conferente dashboard
  */
-export function useStoreDashboard(storeId?: number) {
+export function useConferenteDashboard(storeId?: number) {
     return useQuery({
-        queryKey: dashboardKeys.store(storeId),
-        queryFn: () => getStoreDashboard(storeId),
+        queryKey: dashboardKeys.conferente(storeId),
+        queryFn: () => getConferenteDashboard(storeId),
         staleTime: 1000 * 60 * 2,
         refetchInterval: 1000 * 60 * 5,
     });
@@ -51,7 +51,7 @@ export function useStoreDashboard(storeId?: number) {
 export function useAdminDashboard() {
     return useQuery({
         queryKey: dashboardKeys.admin(),
-        queryFn: getAdminDashboard,
+        queryFn: () => getAdminDashboard(),
         staleTime: 1000 * 60 * 2,
         refetchInterval: 1000 * 60 * 5,
     });

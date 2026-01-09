@@ -1,6 +1,7 @@
 import React from 'react';
 import { vendasDiarias, regrasComissao, lojas } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, Target, Wallet } from 'lucide-react';
 import { StatCard } from '@/components/StatCard';
@@ -8,11 +9,12 @@ import { Progress } from '@/components/ui/progress';
 
 const MinhasComissoes: React.FC = () => {
   const { user } = useAuth();
+  const { currentStore } = usePermissions();
   
-  const minhasVendas = vendasDiarias.filter((v) => v.vendedorId === user?.id);
+  const minhasVendas = vendasDiarias.filter((v) => String(v.vendedorId) === String(user?.id));
   const totalVendas = minhasVendas.reduce((acc, v) => acc + v.valorVendido, 0);
   
-  const loja = lojas.find((l) => l.id === user?.lojaId);
+  const loja = lojas.find((l) => String(l.id) === String(currentStore?.id));
   const metaMensal = loja?.metaMensal || 50000;
   const percentualMeta = (totalVendas / metaMensal) * 100;
 

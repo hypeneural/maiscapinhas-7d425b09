@@ -9,7 +9,7 @@ const MeusBonus: React.FC = () => {
   const { user } = useAuth();
   
   const minhasVendas = vendasDiarias
-    .filter((v) => v.vendedorId === user?.id)
+    .filter((v) => String(v.vendedorId) === String(user?.id))
     .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
   const totalBonus = minhasVendas.reduce((acc, v) => acc + v.bonusGanho, 0);

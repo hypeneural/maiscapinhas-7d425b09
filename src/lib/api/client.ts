@@ -65,8 +65,9 @@ api.interceptors.response.use(
 
 /**
  * Helper to make GET requests with type safety
+ * Accepts any object with optional properties as params
  */
-export async function apiGet<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+export async function apiGet<T>(url: string, params?: object): Promise<T> {
     const response = await api.get<T>(url, { params });
     return response.data;
 }

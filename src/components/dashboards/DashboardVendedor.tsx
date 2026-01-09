@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { GaugeChart } from '@/components/GaugeChart';
 import { CountdownTimer } from '@/components/CountdownTimer';
 import { BonusProgress } from '@/components/BonusProgress';
@@ -9,23 +10,24 @@ import { Wallet, TrendingUp, Target, Calendar } from 'lucide-react';
 
 export const DashboardVendedor: React.FC = () => {
   const { user } = useAuth();
+  const { currentStore } = usePermissions();
 
-  // Mock data para o vendedor logado
+  // Mock data para o vendedor logado (comparing with String for mock compatibility)
   const vendaHoje = vendasDiarias.find(
-    (v) => v.vendedorId === user?.id && v.data === '2026-01-06'
+    (v) => String(v.vendedorId) === String(user?.id) && v.data === '2026-01-06'
   ) || {
     valorVendido: 1250.50,
     metaDia: 1666.67,
     bonusGanho: 25,
   };
 
-  const loja = lojas.find((l) => l.id === user?.lojaId);
+  const loja = lojas.find((l) => String(l.id) === String(currentStore?.id));
   const metaMes = loja?.metaMensal || 50000;
   const metaDia = metaMes / 30;
 
   // Vendas acumuladas do mês
   const vendasMes = vendasDiarias
-    .filter((v) => v.vendedorId === user?.id)
+    .filter((v) => String(v.vendedorId) === String(user?.id))
     .reduce((acc, v) => acc + v.valorVendido, 0);
   const percentualMes = (vendasMes / metaMes) * 100;
 
@@ -60,7 +62,7 @@ export const DashboardVendedor: React.FC = () => {
         <div className="text-center mb-4">
           <h2 className="text-lg font-semibold">Performance do Dia</h2>
           <p className="text-sm text-muted-foreground">
-            {loja?.nome || 'Sua loja'}
+            {loja?.nome || currentStore?.name || 'Sua loja'}
           </p>
         </div>
         <div className="flex justify-center">
