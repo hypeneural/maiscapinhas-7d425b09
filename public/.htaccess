@@ -1,0 +1,93 @@
+# MaisCapinhas ERP - Apache Configuration for SPA
+# ================================================
+# This file handles SPA routing for Single Page Applications
+# Place this in the public folder so it's copied to dist on build
+#
+# For production deployment at erp.maiscapinhas.com.br
+
+# Enable Rewrite Engine
+RewriteEngine On
+
+# Set base path (adjust if app is in a subdirectory)
+RewriteBase /
+
+# =====================================================
+# SPA Fallback Configuration (CRITICAL FOR REACT ROUTER)
+# =====================================================
+# All routes that are not actual files/directories 
+# are served by index.html for client-side routing
+
+# If the request is not a file
+RewriteCond %{REQUEST_FILENAME} !-f
+# If the request is not a directory
+RewriteCond %{REQUEST_FILENAME} !-d
+# Serve index.html for all other routes
+RewriteRule ^ index.html [L]
+
+# =====================================================
+# Security Headers
+# =====================================================
+
+<IfModule mod_headers.c>
+    # Prevent MIME type sniffing
+    Header always set X-Content-Type-Options "nosniff"
+    # Prevent clickjacking
+    Header always set X-Frame-Options "SAMEORIGIN"
+    # Referrer policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# =====================================================
+# Caching for Static Assets (improves performance)
+# =====================================================
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Images - cache for 1 month
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType image/x-icon "access plus 1 month"
+    
+    # Fonts - cache for 1 year
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType application/font-woff "access plus 1 year"
+    ExpiresByType application/font-woff2 "access plus 1 year"
+    
+    # CSS and JS - cache for 1 week (hashed filenames allow cache busting)
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+    
+    # HTML - no cache to always get latest SPA
+    ExpiresByType text/html "access plus 0 seconds"
+    
+    # Service Worker - no cache
+    <FilesMatch "sw\.js$">
+        ExpiresDefault "access plus 0 seconds"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
+# =====================================================
+# Compression (improves load time)
+# =====================================================
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css
+    AddOutputFilterByType DEFLATE application/json application/javascript
+    AddOutputFilterByType DEFLATE text/xml application/xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# =====================================================
+# Prevent access to sensitive files
+# =====================================================
+
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
