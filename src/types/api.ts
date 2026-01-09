@@ -67,16 +67,17 @@ export type BonusStatus = 'provisional' | 'confirmed' | 'zeroed';
 // ============================================================
 
 /**
- * Store role assignment for a user
+ * Store role assignment for a user (from /me endpoint)
  */
-export interface StoreRole {
+export interface UserStore {
     id: number;
     name: string;
+    city: string;
     role: UserRole;
 }
 
 /**
- * User entity
+ * User entity (core user data)
  */
 export interface User {
     id: number;
@@ -85,8 +86,25 @@ export interface User {
     phone?: string;
     avatar_url?: string;
     birth_date?: string;
+    hire_date?: string;  // Data de admissão
     active: boolean;
-    stores: StoreRole[];
+    created_at?: string;
+}
+
+/**
+ * User with stores (full user context)
+ */
+export interface UserWithStores extends User {
+    stores: UserStore[];
+}
+
+/**
+ * Login request body
+ */
+export interface LoginRequest {
+    email: string;
+    password: string;
+    device_name?: string;
 }
 
 /**
@@ -94,15 +112,16 @@ export interface User {
  */
 export interface LoginResponse {
     token: string;
-    token_type: string;
+    token_type: 'Bearer';
     user: User;
 }
 
 /**
- * Current user response (GET /me)
+ * Current user response (GET /me) - Backend returns user and stores separately
  */
 export interface CurrentUserResponse {
     user: User;
+    stores: UserStore[];
 }
 
 // ============================================================
@@ -348,7 +367,93 @@ export interface CommissionProjection {
 // ============================================================
 
 /**
- * Seller dashboard gamification data
+ * Bonus gamification data (from /dashboard/vendedor)
+ */
+export interface BonusGamification {
+    current_amount: number;
+    next_bonus_goal: number;
+    gap_to_bonus: number;
+    next_bonus_value: number;
+    current_bonus_earned: number;
+    message: string;
+}
+
+/**
+ * Monthly commission data (from /dashboard/vendedor)
+ */
+export interface MonthlyCommission {
+    sales_mtd: number;
+    goal_amount: number;
+    achievement_rate: number;
+    current_tier: number;
+    current_commission_value: number;
+    next_tier: number;
+    potential_commission: number;
+}
+
+/**
+ * Daily pace status (from /dashboard/vendedor)
+ */
+export interface DailyPace {
+    today_sales: number;
+    average_daily_sales: number;
+    today_vs_average: number;
+    status: 'AHEAD' | 'BEHIND' | 'ON_TRACK';
+}
+
+/**
+ * Seller dashboard response (GET /dashboard/vendedor)
+ */
+export interface SellerDashboard {
+    date: string;
+    my_sales: { count: number; total: number };
+    store_sales: { count: number; total: number };
+    bonus_gamification: BonusGamification;
+    monthly_commission: MonthlyCommission;
+    daily_pace: DailyPace;
+    my_shifts: CashShift[];
+}
+
+/**
+ * Conferente dashboard response (GET /dashboard/conferente)
+ */
+export interface ConferenteDashboard {
+    date: string;
+    pending_closings: CashClosing[];
+    pending_count: number;
+    store_sales: { count: number; total: number };
+    shifts_today: Record<string, number>;
+    top_sellers: Array<{ seller_id: number; name: string; total: number }>;
+}
+
+/**
+ * Admin dashboard sales by store
+ */
+export interface SalesByStore {
+    store_id: number;
+    store_name: string;
+    count: number;
+    total: number;
+}
+
+/**
+ * Admin dashboard response (GET /dashboard/admin)
+ */
+export interface AdminDashboard {
+    month: string;
+    total_sales: { count: number; total: number };
+    sales_by_store: SalesByStore[];
+    closings_summary: Record<string, number>;
+    top_sellers: Array<{
+        seller_id: number;
+        name: string;
+        total: number;
+        count: number;
+    }>;
+}
+
+/**
+ * @deprecated Use SellerDashboard instead
  */
 export interface GamificationData {
     next_bonus_tier: BonusTier;
@@ -357,29 +462,7 @@ export interface GamificationData {
 }
 
 /**
- * Seller dashboard response
- */
-export interface SellerDashboard {
-    today: {
-        total_sold: number;
-        daily_goal: number;
-        achievement_rate: number;
-        current_bonus: number;
-    };
-    month: {
-        total_sold: number;
-        goal: number;
-        achievement_rate: number;
-    };
-    gamification: GamificationData;
-    shift?: {
-        end_time: string;
-        shift_code: ShiftCode;
-    };
-}
-
-/**
- * Store dashboard response
+ * @deprecated Use ConferenteDashboard instead
  */
 export interface StoreDashboard {
     today: {

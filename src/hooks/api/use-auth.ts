@@ -5,6 +5,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
     login,
     logout,
@@ -14,9 +15,15 @@ import {
     resetPassword,
     changePassword
 } from '@/services/auth.service';
-import { handleApiError } from '@/lib/api';
+import { handleApiError, ApiError, isApiError, getToken } from '@/lib/api';
+import {
+    checkLoginRateLimit,
+    recordLoginAttempt,
+    clearLoginAttempts,
+    getRateLimitRemainingTime
+} from '@/lib/utils/rateLimiter';
 import { toast } from 'sonner';
-import type { User } from '@/types/api';
+import type { UserWithStores } from '@/types/api';
 
 /**
  * Query key factory for auth queries
@@ -30,11 +37,25 @@ export const authKeys = {
  * Hook to get current authenticated user
  */
 export function useCurrentUser() {
+    // Only fetch if there's a token
+    const hasToken = !!getToken();
+
     return useQuery({
         queryKey: authKeys.user(),
         queryFn: getCurrentUser,
+        enabled: hasToken, // Don't call /me without a token
         staleTime: 1000 * 60 * 10, // 10 minutes
-        retry: false, // Don't retry on auth failure
+        retry: (failureCount, error) => {
+            // Never retry on 401 (not authorized)
+            if (isApiError(error) && error.status === 401) {
+                return false;
+            }
+            // Also don't retry on 403 (forbidden)
+            if (isApiError(error) && error.status === 403) {
+                return false;
+            }
+            return failureCount < 2;
+        },
     });
 }
 
@@ -43,15 +64,45 @@ export function useCurrentUser() {
  */
 export function useLogin() {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
 
     return useMutation({
-        mutationFn: (credentials: { email: string; password: string }) => login(credentials),
+        mutationFn: async (credentials: { email: string; password: string }) => {
+            // Check rate limit before attempting login
+            if (!checkLoginRateLimit(credentials.email)) {
+                const remainingTime = getRateLimitRemainingTime(credentials.email);
+                const minutes = Math.ceil(remainingTime / 60);
+                throw new Error(
+                    `Muitas tentativas de login. Aguarde ${minutes} minuto(s) e tente novamente.`
+                );
+            }
+
+            // Record the attempt
+            recordLoginAttempt(credentials.email);
+
+            try {
+                const user = await login(credentials);
+                // Clear rate limit on success
+                clearLoginAttempts(credentials.email);
+                return user;
+            } catch (error) {
+                // Rethrow to let the mutation handle it
+                throw error;
+            }
+        },
         onSuccess: (user) => {
-            queryClient.setQueryData(authKeys.user(), user);
+            // Don't set partial user data in cache - invalidate to force fetch from /me
+            queryClient.invalidateQueries({ queryKey: authKeys.user() });
             toast.success(`Bem-vindo, ${user.name.split(' ')[0]}!`);
+            navigate('/', { replace: true });
         },
         onError: (error) => {
-            handleApiError(error);
+            if (error instanceof Error && !isApiError(error)) {
+                // Rate limit error
+                toast.error(error.message);
+            } else {
+                handleApiError(error);
+            }
         },
     });
 }
@@ -61,16 +112,19 @@ export function useLogin() {
  */
 export function useLogout() {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
 
     return useMutation({
         mutationFn: logout,
         onSuccess: () => {
             queryClient.clear();
+            navigate('/login', { replace: true });
             toast.success('Logout realizado com sucesso');
         },
         onError: () => {
             // Still clear client-side state even if API fails
             queryClient.clear();
+            navigate('/login', { replace: true });
         },
     });
 }
@@ -80,11 +134,13 @@ export function useLogout() {
  */
 export function useLogoutAll() {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
 
     return useMutation({
         mutationFn: logoutAll,
         onSuccess: () => {
             queryClient.clear();
+            navigate('/login', { replace: true });
             toast.success('Todas as sessões foram encerradas');
         },
         onError: (error) => {
@@ -141,22 +197,24 @@ export function useChangePassword() {
 /**
  * Check if user has a specific role in any store
  */
-export function hasRole(user: User | null | undefined, role: string): boolean {
-    return user?.stores.some((s) => s.role === role) ?? false;
+export function hasRole(user: UserWithStores | null | undefined, role: string): boolean {
+    if (!user || !user.stores) return false;
+    return user.stores.some((s) => s.role === role);
 }
 
 /**
  * Check if user has access to a specific store
  */
-export function hasAccessToStore(user: User | null | undefined, storeId: number): boolean {
-    return user?.stores.some((s) => s.id === storeId) ?? false;
+export function hasAccessToStore(user: UserWithStores | null | undefined, storeId: number): boolean {
+    if (!user || !user.stores) return false;
+    return user.stores.some((s) => s.id === storeId);
 }
 
 /**
  * Get highest role for a user
  */
-export function getHighestRole(user: User | null | undefined): string | null {
-    if (!user) return null;
+export function getHighestRole(user: UserWithStores | null | undefined): string | null {
+    if (!user || !user.stores || user.stores.length === 0) return null;
 
     const roleHierarchy = ['admin', 'gerente', 'conferente', 'vendedor'];
 

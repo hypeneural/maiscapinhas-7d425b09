@@ -1,221 +1,772 @@
+/**
+ * Usuários & Lojas Page (Refactored)
+ * 
+ * Modern CRUD interface for managing users and stores.
+ * Uses real API integration via React Query hooks.
+ */
+
 import React, { useState } from 'react';
-import { Users, Store, Plus, Pencil, Trash2, Save, X, Search, UserCheck, UserX, MapPin, Calendar } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, Store, Plus, Pencil, Trash2, UserPlus, Shield, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/PageHeader';
-import { StatusBadge } from '@/components/StatusBadge';
-import { usuarios as initialUsuarios, lojas as initialLojas } from '@/data/mockData';
+import { DataTable, FormDialog, ConfirmDialog, ImageUpload, type Column, type RowAction } from '@/components/crud';
+import {
+  useAdminUsers,
+  useCreateUser,
+  useUpdateUser,
+  useDeactivateUser,
+  useReactivateUser,
+  useUploadAvatar,
+  useRemoveAvatar,
+} from '@/hooks/api/use-admin-users';
+import {
+  useAdminStores,
+  useCreateStore,
+  useUpdateStore,
+  useDeactivateStore,
+  useStoreUsers,
+  useAddUserToStore,
+  useUpdateUserRole,
+  useRemoveUserFromStore,
+  useUploadStorePhoto,
+} from '@/hooks/api/use-admin-stores';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import type { User, Loja, UserRole } from '@/types';
+import type { AdminUserResponse, AdminStoreResponse, CreateUserRequest, CreateStoreRequest, StoreUserBinding } from '@/types/admin.types';
+import type { UserRole } from '@/types/api';
+
+// ============================================================
+// Constants
+// ============================================================
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  admin: 'Administrador',
+  gerente: 'Gerente',
+  conferente: 'Conferente',
+  vendedor: 'Vendedor',
+};
+
+const ROLE_COLORS: Record<UserRole, string> = {
+  admin: 'bg-red-500/10 text-red-600 border-red-500/20',
+  gerente: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  conferente: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  vendedor: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
+};
+
+// ============================================================
+// Users Tab Component
+// ============================================================
+
+function UsersTab() {
+  const { user: currentUser } = useAuth();
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUserResponse | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<AdminUserResponse | null>(null);
+
+  // Form state
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    active: true,
+  });
+
+  // Queries and mutations
+  const { data: usersData, isLoading } = useAdminUsers({ search, page, per_page: 25 });
+  const createMutation = useCreateUser();
+  const updateMutation = useUpdateUser();
+  const deactivateMutation = useDeactivateUser();
+  const reactivateMutation = useReactivateUser();
+  const uploadAvatarMutation = useUploadAvatar();
+  const removeAvatarMutation = useRemoveAvatar();
+
+  // Table columns
+  const columns: Column<AdminUserResponse>[] = [
+    {
+      key: 'name',
+      label: 'Usuário',
+      render: (_, user) => (
+        <div className="flex items-center gap-3">
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={user.stores?.[0]?.store_name} />
+            <AvatarFallback className={cn(
+              'text-sm font-medium',
+              user.active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+            )}>
+              {user.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-medium">{user.name}</p>
+            <p className="text-xs text-muted-foreground">{user.email}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'stores',
+      label: 'Lojas / Roles',
+      render: (_, user) => (
+        <div className="flex flex-wrap gap-1">
+          {user.stores?.length > 0 ? (
+            user.stores.slice(0, 3).map((s) => (
+              <Badge
+                key={s.store_id}
+                variant="outline"
+                className={cn('text-xs', ROLE_COLORS[s.role])}
+              >
+                {s.store_name.split(' ').slice(-1)[0]} • {ROLE_LABELS[s.role]}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-muted-foreground text-xs">Sem lojas</span>
+          )}
+          {user.stores?.length > 3 && (
+            <Badge variant="outline" className="text-xs">
+              +{user.stores.length - 3}
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'active',
+      label: 'Status',
+      render: (value) => (
+        <Badge variant={value ? 'default' : 'secondary'}>
+          {value ? 'Ativo' : 'Inativo'}
+        </Badge>
+      ),
+    },
+  ];
+
+  // Row actions
+  const getRowActions = (user: AdminUserResponse): RowAction<AdminUserResponse>[] => [
+    {
+      label: 'Editar',
+      icon: <Pencil className="h-4 w-4" />,
+      onClick: (u) => handleEdit(u),
+    },
+    {
+      label: user.active ? 'Desativar' : 'Reativar',
+      icon: user.active ? <Trash2 className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />,
+      onClick: (u) => user.active ? setConfirmDelete(u) : handleReactivate(u),
+      variant: user.active ? 'destructive' : 'default',
+      separator: true,
+      disabled: (row) => row.id === currentUser?.id, // Can't deactivate yourself
+    },
+  ];
+
+  // Handlers
+  const handleEdit = (user: AdminUserResponse) => {
+    setEditingUser(user);
+    setForm({
+      name: user.name,
+      email: user.email,
+      password: '',
+      active: user.active,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleCreate = () => {
+    setEditingUser(null);
+    setForm({ name: '', email: '', password: '', active: true });
+    setIsDialogOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    if (editingUser) {
+      await updateMutation.mutateAsync({
+        id: editingUser.id,
+        data: {
+          name: form.name,
+          email: form.email,
+          password: form.password || undefined,
+          active: form.active,
+        },
+      });
+    } else {
+      await createMutation.mutateAsync({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        active: form.active,
+      });
+    }
+    setIsDialogOpen(false);
+  };
+
+  const handleDeactivate = async () => {
+    if (confirmDelete) {
+      await deactivateMutation.mutateAsync(confirmDelete.id);
+      setConfirmDelete(null);
+    }
+  };
+
+  const handleReactivate = async (user: AdminUserResponse) => {
+    await reactivateMutation.mutateAsync(user.id);
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    if (editingUser) {
+      await uploadAvatarMutation.mutateAsync({ id: editingUser.id, file });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div /> {/* Spacer */}
+        <Button onClick={handleCreate}>
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Usuário
+        </Button>
+      </div>
+
+      <DataTable
+        data={usersData?.data || []}
+        columns={columns}
+        loading={isLoading}
+        getRowKey={(u) => u.id}
+        onSearch={setSearch}
+        searchPlaceholder="Buscar por nome ou email..."
+        pagination={usersData?.meta}
+        onPageChange={setPage}
+        actions={getRowActions}
+        emptyMessage="Nenhum usuário encontrado"
+        emptyIcon={<Users className="h-12 w-12 text-muted-foreground" />}
+      />
+
+      {/* Create/Edit Dialog */}
+      <FormDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        title={editingUser ? 'Editar Usuário' : 'Novo Usuário'}
+        onSubmit={handleSubmit}
+        loading={createMutation.isPending || updateMutation.isPending}
+        isEdit={!!editingUser}
+        size="md"
+      >
+        {editingUser && (
+          <div className="flex justify-center mb-4">
+            <ImageUpload
+              variant="circle"
+              size="lg"
+              loading={uploadAvatarMutation.isPending}
+              onChange={handleAvatarUpload}
+              onRemove={() => removeAvatarMutation.mutate(editingUser.id)}
+              maxSize={2 * 1024 * 1024}
+              minDimension={{ width: 200, height: 200 }}
+            />
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <Label>Nome Completo *</Label>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="João Silva Santos"
+            />
+          </div>
+
+          <div>
+            <Label>Email *</Label>
+            <Input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
+              placeholder="joao@maiscapinhas.com.br"
+            />
+          </div>
+
+          <div>
+            <Label>{editingUser ? 'Nova Senha (opcional)' : 'Senha *'}</Label>
+            <Input
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
+              placeholder={editingUser ? 'Deixe em branco para manter' : 'Mínimo 8 caracteres'}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg border">
+            <div>
+              <Label className="text-base">Usuário Ativo</Label>
+              <p className="text-sm text-muted-foreground">Pode acessar o sistema</p>
+            </div>
+            <Switch
+              checked={form.active}
+              onCheckedChange={(checked) => setForm(f => ({ ...f, active: checked }))}
+            />
+          </div>
+        </div>
+      </FormDialog>
+
+      {/* Confirm Deactivate Dialog */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onOpenChange={() => setConfirmDelete(null)}
+        title="Desativar Usuário"
+        description={
+          <p>
+            Tem certeza que deseja desativar <strong>{confirmDelete?.name}</strong>?
+            <br />
+            <span className="text-muted-foreground text-sm">
+              O usuário perderá acesso ao sistema, mas seus dados serão mantidos.
+            </span>
+          </p>
+        }
+        confirmText="Desativar"
+        onConfirm={handleDeactivate}
+        loading={deactivateMutation.isPending}
+        variant="destructive"
+      />
+    </div>
+  );
+}
+
+// ============================================================
+// Stores Tab Component
+// ============================================================
+
+function StoresTab() {
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingStore, setEditingStore] = useState<AdminStoreResponse | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<AdminStoreResponse | null>(null);
+  const [selectedStoreForUsers, setSelectedStoreForUsers] = useState<AdminStoreResponse | null>(null);
+
+  // Form state
+  const [form, setForm] = useState({
+    name: '',
+    city: '',
+    active: true,
+  });
+
+  // Queries and mutations
+  const { data: storesData, isLoading } = useAdminStores({ search, page, per_page: 25 });
+  const createMutation = useCreateStore();
+  const updateMutation = useUpdateStore();
+  const deactivateMutation = useDeactivateStore();
+  const uploadPhotoMutation = useUploadStorePhoto();
+
+  // Table columns
+  const columns: Column<AdminStoreResponse>[] = [
+    {
+      key: 'name',
+      label: 'Loja',
+      render: (_, store) => (
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            'p-2 rounded-lg',
+            store.active ? 'bg-primary/10' : 'bg-muted'
+          )}>
+            <Store className={cn(
+              'h-5 w-5',
+              store.active ? 'text-primary' : 'text-muted-foreground'
+            )} />
+          </div>
+          <div>
+            <p className="font-medium">{store.name}</p>
+            <p className="text-xs text-muted-foreground">{store.city}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'users_count',
+      label: 'Usuários',
+      render: (value) => (
+        <Badge variant="outline">
+          {(value as number) || 0} usuários
+        </Badge>
+      ),
+    },
+    {
+      key: 'active',
+      label: 'Status',
+      render: (value) => (
+        <Badge variant={value ? 'default' : 'secondary'}>
+          {value ? 'Ativa' : 'Inativa'}
+        </Badge>
+      ),
+    },
+  ];
+
+  // Row actions
+  const getRowActions = (store: AdminStoreResponse): RowAction<AdminStoreResponse>[] => [
+    {
+      label: 'Editar',
+      icon: <Pencil className="h-4 w-4" />,
+      onClick: (s) => handleEdit(s),
+    },
+    {
+      label: 'Gerenciar Usuários',
+      icon: <Users className="h-4 w-4" />,
+      onClick: (s) => setSelectedStoreForUsers(s),
+      separator: true,
+    },
+    {
+      label: store.active ? 'Desativar' : 'Reativar',
+      icon: <Trash2 className="h-4 w-4" />,
+      onClick: (s) => setConfirmDelete(s),
+      variant: store.active ? 'destructive' : 'default',
+      separator: true,
+    },
+  ];
+
+  // Handlers
+  const handleEdit = (store: AdminStoreResponse) => {
+    setEditingStore(store);
+    setForm({
+      name: store.name,
+      city: store.city,
+      active: store.active,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleCreate = () => {
+    setEditingStore(null);
+    setForm({ name: '', city: '', active: true });
+    setIsDialogOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    if (editingStore) {
+      await updateMutation.mutateAsync({
+        id: editingStore.id,
+        data: form,
+      });
+    } else {
+      await createMutation.mutateAsync(form);
+    }
+    setIsDialogOpen(false);
+  };
+
+  const handleDeactivate = async () => {
+    if (confirmDelete) {
+      await deactivateMutation.mutateAsync(confirmDelete.id);
+      setConfirmDelete(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div /> {/* Spacer */}
+        <Button onClick={handleCreate}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nova Loja
+        </Button>
+      </div>
+
+      <DataTable
+        data={storesData?.data || []}
+        columns={columns}
+        loading={isLoading}
+        getRowKey={(s) => s.id}
+        onSearch={setSearch}
+        searchPlaceholder="Buscar por nome ou cidade..."
+        pagination={storesData?.meta}
+        onPageChange={setPage}
+        actions={getRowActions}
+        emptyMessage="Nenhuma loja encontrada"
+        emptyIcon={<Store className="h-12 w-12 text-muted-foreground" />}
+      />
+
+      {/* Create/Edit Dialog */}
+      <FormDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        title={editingStore ? 'Editar Loja' : 'Nova Loja'}
+        onSubmit={handleSubmit}
+        loading={createMutation.isPending || updateMutation.isPending}
+        isEdit={!!editingStore}
+        size="md"
+      >
+        {editingStore && (
+          <div className="flex justify-center mb-4">
+            <ImageUpload
+              variant="rectangle"
+              size="lg"
+              loading={uploadPhotoMutation.isPending}
+              onChange={(file) => uploadPhotoMutation.mutate({ id: editingStore.id, file })}
+              maxSize={5 * 1024 * 1024}
+              minDimension={{ width: 800, height: 600 }}
+              placeholder="Foto da loja"
+            />
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <Label>Nome da Loja *</Label>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Mais Capinhas Shopping Center"
+            />
+          </div>
+
+          <div>
+            <Label>Cidade *</Label>
+            <Input
+              value={form.city}
+              onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))}
+              placeholder="Tijucas"
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg border">
+            <div>
+              <Label className="text-base">Loja Ativa</Label>
+              <p className="text-sm text-muted-foreground">Aparece nas opções do sistema</p>
+            </div>
+            <Switch
+              checked={form.active}
+              onCheckedChange={(checked) => setForm(f => ({ ...f, active: checked }))}
+            />
+          </div>
+        </div>
+      </FormDialog>
+
+      {/* Store Users Management Dialog */}
+      {selectedStoreForUsers && (
+        <StoreUsersDialog
+          store={selectedStoreForUsers}
+          onClose={() => setSelectedStoreForUsers(null)}
+        />
+      )}
+
+      {/* Confirm Deactivate Dialog */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onOpenChange={() => setConfirmDelete(null)}
+        title="Desativar Loja"
+        description={
+          <p>
+            Tem certeza que deseja desativar <strong>{confirmDelete?.name}</strong>?
+            <br />
+            <span className="text-muted-foreground text-sm">
+              Os dados da loja serão mantidos, mas ela não aparecerá nas opções.
+            </span>
+          </p>
+        }
+        confirmText="Desativar"
+        onConfirm={handleDeactivate}
+        loading={deactivateMutation.isPending}
+        variant="destructive"
+      />
+    </div>
+  );
+}
+
+// ============================================================
+// Store Users Dialog Component
+// ============================================================
+
+interface StoreUsersDialogProps {
+  store: AdminStoreResponse;
+  onClose: () => void;
+}
+
+function StoreUsersDialog({ store, onClose }: StoreUsersDialogProps) {
+  const { user: currentUser } = useAuth();
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [newUserId, setNewUserId] = useState('');
+  const [newUserRole, setNewUserRole] = useState<UserRole>('vendedor');
+  const [confirmRemove, setConfirmRemove] = useState<StoreUserBinding | null>(null);
+
+  const { data: storeUsers, isLoading } = useStoreUsers(store.id);
+  const { data: allUsers } = useAdminUsers({ per_page: 100 });
+  const addUserMutation = useAddUserToStore();
+  const updateRoleMutation = useUpdateUserRole();
+  const removeUserMutation = useRemoveUserFromStore();
+
+  // Get users not already in this store
+  const availableUsers = allUsers?.data.filter(
+    u => !storeUsers?.some(su => su.user_id === u.id)
+  ) || [];
+
+  const handleAddUser = async () => {
+    if (!newUserId) return;
+    await addUserMutation.mutateAsync({
+      storeId: store.id,
+      data: { user_id: parseInt(newUserId), role: newUserRole },
+    });
+    setIsAddingUser(false);
+    setNewUserId('');
+    setNewUserRole('vendedor');
+  };
+
+  const handleUpdateRole = async (userId: number, role: UserRole) => {
+    await updateRoleMutation.mutateAsync({
+      storeId: store.id,
+      userId,
+      data: { role },
+    });
+  };
+
+  const handleRemoveUser = async () => {
+    if (!confirmRemove) return;
+    await removeUserMutation.mutateAsync({
+      storeId: store.id,
+      userId: confirmRemove.user_id,
+    });
+    setConfirmRemove(null);
+  };
+
+  return (
+    <>
+      <FormDialog
+        open={true}
+        onOpenChange={onClose}
+        title={`Usuários - ${store.name}`}
+        onSubmit={(e) => { e.preventDefault(); onClose(); }}
+        submitText="Fechar"
+        size="lg"
+      >
+        <div className="space-y-4">
+          {/* Add User Section */}
+          {isAddingUser ? (
+            <div className="p-4 border rounded-lg bg-muted/50 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Usuário</Label>
+                  <Select value={newUserId} onValueChange={setNewUserId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableUsers.map(u => (
+                        <SelectItem key={u.id} value={String(u.id)}>
+                          {u.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Role</Label>
+                  <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as UserRole)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(ROLE_LABELS).map(([role, label]) => (
+                        <SelectItem key={role} value={role}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleAddUser} disabled={addUserMutation.isPending}>
+                  Adicionar
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setIsAddingUser(false)}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="outline" className="w-full" onClick={() => setIsAddingUser(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Adicionar Usuário
+            </Button>
+          )}
+
+          {/* Users List */}
+          <div className="space-y-2">
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+            ) : storeUsers?.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhum usuário vinculado a esta loja.
+              </div>
+            ) : (
+              storeUsers?.map((binding) => (
+                <div
+                  key={binding.user_id}
+                  className="flex items-center justify-between p-3 rounded-lg border"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback>
+                        {binding.user_name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{binding.user_name}</p>
+                      <p className="text-xs text-muted-foreground">{binding.user_email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={binding.role}
+                      onValueChange={(v) => handleUpdateRole(binding.user_id, v as UserRole)}
+                      disabled={updateRoleMutation.isPending}
+                    >
+                      <SelectTrigger className="w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(ROLE_LABELS).map(([role, label]) => (
+                          <SelectItem key={role} value={role}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setConfirmRemove(binding)}
+                      disabled={binding.user_id === currentUser?.id}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </FormDialog>
+
+      {/* Confirm Remove Dialog */}
+      <ConfirmDialog
+        open={!!confirmRemove}
+        onOpenChange={() => setConfirmRemove(null)}
+        title="Remover Usuário"
+        description={`Remover ${confirmRemove?.user_name} de ${store.name}?`}
+        confirmText="Remover"
+        onConfirm={handleRemoveUser}
+        loading={removeUserMutation.isPending}
+        variant="destructive"
+      />
+    </>
+  );
+}
+
+// ============================================================
+// Main Component
+// ============================================================
 
 const UsuariosLojas: React.FC = () => {
-  const { toast } = useToast();
-  const [usuarios, setUsuarios] = useState<User[]>(initialUsuarios);
-  const [lojas, setLojas] = useState<Loja[]>(initialLojas);
-  const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('usuarios');
-  
-  // Dialog states
-  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
-  const [isLojaDialogOpen, setIsLojaDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [editingLoja, setEditingLoja] = useState<Loja | null>(null);
-
-  // Form states
-  const [userForm, setUserForm] = useState({
-    nome: '',
-    email: '',
-    role: 'vendedor' as UserRole,
-    lojaId: '',
-    dataNascimento: '',
-    ativo: true,
-  });
-
-  const [lojaForm, setLojaForm] = useState({
-    nome: '',
-    codigo: '',
-    endereco: '',
-    metaMensal: 0,
-    ativo: true,
-  });
-
-  const roleLabels: Record<UserRole, string> = {
-    admin: 'Administrador',
-    gerente: 'Gerente',
-    conferente: 'Conferente',
-    vendedor: 'Vendedor',
-  };
-
-  const getRoleColor = (role: UserRole): 'success' | 'warning' | 'error' | 'default' => {
-    switch (role) {
-      case 'admin': return 'error';
-      case 'gerente': return 'warning';
-      case 'conferente': return 'success';
-      default: return 'default';
-    }
-  };
-
-  // Usuários
-  const filteredUsuarios = usuarios.filter(u =>
-    u.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleSaveUser = () => {
-    if (!userForm.nome || !userForm.email || !userForm.lojaId) {
-      toast({
-        title: 'Erro',
-        description: 'Preencha todos os campos obrigatórios',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (editingUser) {
-      setUsuarios(prev => prev.map(u => 
-        u.id === editingUser.id 
-          ? { ...u, ...userForm }
-          : u
-      ));
-      toast({ title: 'Usuário atualizado com sucesso!' });
-    } else {
-      const novoUser: User = {
-        id: String(Date.now()),
-        avatar: '',
-        ...userForm,
-      };
-      setUsuarios(prev => [...prev, novoUser]);
-      toast({ title: 'Usuário criado com sucesso!' });
-    }
-
-    setIsUserDialogOpen(false);
-    setEditingUser(null);
-    resetUserForm();
-  };
-
-  const resetUserForm = () => {
-    setUserForm({
-      nome: '',
-      email: '',
-      role: 'vendedor',
-      lojaId: '',
-      dataNascimento: '',
-      ativo: true,
-    });
-  };
-
-  const handleEditUser = (user: User) => {
-    setEditingUser(user);
-    setUserForm({
-      nome: user.nome,
-      email: user.email,
-      role: user.role,
-      lojaId: user.lojaId,
-      dataNascimento: user.dataNascimento,
-      ativo: user.ativo,
-    });
-    setIsUserDialogOpen(true);
-  };
-
-  const handleDeleteUser = (id: string) => {
-    setUsuarios(prev => prev.filter(u => u.id !== id));
-    toast({ title: 'Usuário removido com sucesso!' });
-  };
-
-  const handleToggleUserAtivo = (id: string) => {
-    setUsuarios(prev => prev.map(u => 
-      u.id === id ? { ...u, ativo: !u.ativo } : u
-    ));
-  };
-
-  // Lojas
-  const filteredLojas = lojas.filter(l =>
-    l.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    l.codigo.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleSaveLoja = () => {
-    if (!lojaForm.nome || !lojaForm.codigo) {
-      toast({
-        title: 'Erro',
-        description: 'Preencha todos os campos obrigatórios',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (editingLoja) {
-      setLojas(prev => prev.map(l => 
-        l.id === editingLoja.id 
-          ? { ...l, ...lojaForm }
-          : l
-      ));
-      toast({ title: 'Loja atualizada com sucesso!' });
-    } else {
-      const novaLoja: Loja = {
-        id: String(Date.now()),
-        ...lojaForm,
-      };
-      setLojas(prev => [...prev, novaLoja]);
-      toast({ title: 'Loja criada com sucesso!' });
-    }
-
-    setIsLojaDialogOpen(false);
-    setEditingLoja(null);
-    resetLojaForm();
-  };
-
-  const resetLojaForm = () => {
-    setLojaForm({
-      nome: '',
-      codigo: '',
-      endereco: '',
-      metaMensal: 0,
-      ativo: true,
-    });
-  };
-
-  const handleEditLoja = (loja: Loja) => {
-    setEditingLoja(loja);
-    setLojaForm({
-      nome: loja.nome,
-      codigo: loja.codigo,
-      endereco: loja.endereco,
-      metaMensal: loja.metaMensal,
-      ativo: loja.ativo,
-    });
-    setIsLojaDialogOpen(true);
-  };
-
-  const handleDeleteLoja = (id: string) => {
-    // Verificar se há usuários vinculados
-    const usuariosVinculados = usuarios.filter(u => u.lojaId === id);
-    if (usuariosVinculados.length > 0) {
-      toast({
-        title: 'Erro',
-        description: 'Não é possível remover uma loja com usuários vinculados',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setLojas(prev => prev.filter(l => l.id !== id));
-    toast({ title: 'Loja removida com sucesso!' });
-  };
-
-  const handleToggleLojaAtivo = (id: string) => {
-    setLojas(prev => prev.map(l => 
-      l.id === id ? { ...l, ativo: !l.ativo } : l
-    ));
-  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -226,386 +777,25 @@ const UsuariosLojas: React.FC = () => {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <TabsList>
-            <TabsTrigger value="usuarios" className="gap-2">
-              <Users className="w-4 h-4" />
-              Usuários
-            </TabsTrigger>
-            <TabsTrigger value="lojas" className="gap-2">
-              <Store className="w-4 h-4" />
-              Lojas
-            </TabsTrigger>
-          </TabsList>
-
-          <div className="flex gap-2">
-            <div className="relative flex-1 md:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            {activeTab === 'usuarios' ? (
-              <Button onClick={() => { setEditingUser(null); resetUserForm(); setIsUserDialogOpen(true); }}>
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Usuário
-              </Button>
-            ) : (
-              <Button onClick={() => { setEditingLoja(null); resetLojaForm(); setIsLojaDialogOpen(true); }}>
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Loja
-              </Button>
-            )}
-          </div>
-        </div>
+        <TabsList className="mb-6">
+          <TabsTrigger value="usuarios" className="gap-2">
+            <Users className="w-4 h-4" />
+            Usuários
+          </TabsTrigger>
+          <TabsTrigger value="lojas" className="gap-2">
+            <Store className="w-4 h-4" />
+            Lojas
+          </TabsTrigger>
+        </TabsList>
 
         <TabsContent value="usuarios" className="mt-0">
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left py-3 px-4 font-semibold">Status</th>
-                      <th className="text-left py-3 px-4 font-semibold">Nome</th>
-                      <th className="text-left py-3 px-4 font-semibold">Email</th>
-                      <th className="text-left py-3 px-4 font-semibold">Perfil</th>
-                      <th className="text-left py-3 px-4 font-semibold">Loja</th>
-                      <th className="text-left py-3 px-4 font-semibold">Aniversário</th>
-                      <th className="text-center py-3 px-4 font-semibold">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsuarios.map((user) => {
-                      const loja = lojas.find(l => l.id === user.lojaId);
-                      return (
-                        <tr 
-                          key={user.id} 
-                          className={cn(
-                            'border-b transition-colors hover:bg-muted/50',
-                            !user.ativo && 'opacity-60'
-                          )}
-                        >
-                          <td className="py-3 px-4">
-                            <Switch
-                              checked={user.ativo}
-                              onCheckedChange={() => handleToggleUserAtivo(user.id)}
-                            />
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-3">
-                              <div className={cn(
-                                'w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium',
-                                user.ativo ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                              )}>
-                                {user.nome.charAt(0)}
-                              </div>
-                              <span className="font-medium">{user.nome}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 text-muted-foreground">{user.email}</td>
-                          <td className="py-3 px-4">
-                            <StatusBadge variant={getRoleColor(user.role)}>
-                              {roleLabels[user.role]}
-                            </StatusBadge>
-                          </td>
-                          <td className="py-3 px-4 text-muted-foreground">{loja?.nome}</td>
-                          <td className="py-3 px-4 text-muted-foreground">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4" />
-                              {format(new Date(user.dataNascimento), 'dd/MM', { locale: ptBR })}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex justify-center gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => handleEditUser(user)}>
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.id)}>
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              {filteredUsuarios.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  Nenhum usuário encontrado.
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <UsersTab />
         </TabsContent>
 
         <TabsContent value="lojas" className="mt-0">
-          <div className="grid gap-4">
-            {filteredLojas.map(loja => {
-              const vendedoresLoja = usuarios.filter(u => u.lojaId === loja.id && u.role === 'vendedor');
-              
-              return (
-                <Card 
-                  key={loja.id}
-                  className={cn(
-                    'hover:shadow-md transition-shadow',
-                    !loja.ativo && 'opacity-60'
-                  )}
-                >
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      <div className="flex items-start gap-4">
-                        <div className={cn(
-                          'p-3 rounded-lg',
-                          loja.ativo ? 'bg-primary/10' : 'bg-muted'
-                        )}>
-                          <Store className={cn(
-                            'w-6 h-6',
-                            loja.ativo ? 'text-primary' : 'text-muted-foreground'
-                          )} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-lg">{loja.nome}</h3>
-                            <StatusBadge variant={loja.ativo ? 'success' : 'default'}>
-                              {loja.ativo ? 'Ativa' : 'Inativa'}
-                            </StatusBadge>
-                          </div>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                            <MapPin className="w-3 h-3" />
-                            {loja.endereco}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Código: {loja.codigo}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-6">
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground">Meta Mensal</p>
-                          <p className="font-bold text-lg">
-                            R$ {loja.metaMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </p>
-                        </div>
-
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground">Vendedores</p>
-                          <p className="font-bold text-lg">{vendedoresLoja.length}</p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={loja.ativo}
-                            onCheckedChange={() => handleToggleLojaAtivo(loja.id)}
-                          />
-                        </div>
-
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditLoja(loja)}>
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteLoja(loja.id)}>
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-
-            {filteredLojas.length === 0 && (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Store className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-lg font-medium">Nenhuma loja encontrada</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          <StoresTab />
         </TabsContent>
       </Tabs>
-
-      {/* Dialog de Usuário */}
-      <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingUser ? 'Editar Usuário' : 'Novo Usuário'}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Nome Completo</Label>
-              <Input
-                placeholder="Nome do usuário"
-                value={userForm.nome}
-                onChange={(e) => setUserForm(prev => ({ ...prev, nome: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <Label>Email</Label>
-              <Input
-                type="email"
-                placeholder="email@exemplo.com"
-                value={userForm.email}
-                onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Perfil</Label>
-                <Select 
-                  value={userForm.role} 
-                  onValueChange={(v: UserRole) => setUserForm(prev => ({ ...prev, role: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="gerente">Gerente</SelectItem>
-                    <SelectItem value="conferente">Conferente</SelectItem>
-                    <SelectItem value="vendedor">Vendedor</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Loja</Label>
-                <Select 
-                  value={userForm.lojaId} 
-                  onValueChange={(v) => setUserForm(prev => ({ ...prev, lojaId: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {lojas.map(loja => (
-                      <SelectItem key={loja.id} value={loja.id}>{loja.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <Label>Data de Nascimento</Label>
-              <Input
-                type="date"
-                value={userForm.dataNascimento}
-                onChange={(e) => setUserForm(prev => ({ ...prev, dataNascimento: e.target.value }))}
-              />
-            </div>
-
-            <div className="flex items-center justify-between p-3 rounded-lg border">
-              <div>
-                <Label className="text-base">Usuário Ativo</Label>
-                <p className="text-sm text-muted-foreground">Pode acessar o sistema</p>
-              </div>
-              <Switch
-                checked={userForm.ativo}
-                onCheckedChange={(checked) => setUserForm(prev => ({ ...prev, ativo: checked }))}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>
-              <X className="w-4 h-4 mr-2" />
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveUser}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog de Loja */}
-      <Dialog open={isLojaDialogOpen} onOpenChange={setIsLojaDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingLoja ? 'Editar Loja' : 'Nova Loja'}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Nome da Loja</Label>
-              <Input
-                placeholder="Ex: Mais Capinhas - Shopping"
-                value={lojaForm.nome}
-                onChange={(e) => setLojaForm(prev => ({ ...prev, nome: e.target.value }))}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Código</Label>
-                <Input
-                  placeholder="Ex: MC001"
-                  value={lojaForm.codigo}
-                  onChange={(e) => setLojaForm(prev => ({ ...prev, codigo: e.target.value }))}
-                />
-              </div>
-
-              <div>
-                <Label>Meta Mensal (R$)</Label>
-                <Input
-                  type="number"
-                  placeholder="0,00"
-                  value={lojaForm.metaMensal || ''}
-                  onChange={(e) => setLojaForm(prev => ({ ...prev, metaMensal: Number(e.target.value) }))}
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label>Endereço</Label>
-              <Input
-                placeholder="Endereço completo da loja"
-                value={lojaForm.endereco}
-                onChange={(e) => setLojaForm(prev => ({ ...prev, endereco: e.target.value }))}
-              />
-            </div>
-
-            <div className="flex items-center justify-between p-3 rounded-lg border">
-              <div>
-                <Label className="text-base">Loja Ativa</Label>
-                <p className="text-sm text-muted-foreground">Aparece nas opções do sistema</p>
-              </div>
-              <Switch
-                checked={lojaForm.ativo}
-                onCheckedChange={(checked) => setLojaForm(prev => ({ ...prev, ativo: checked }))}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsLojaDialogOpen(false)}>
-              <X className="w-4 h-4 mr-2" />
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveLoja}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

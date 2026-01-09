@@ -1,5 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { getToken, clearToken } from './token';
+import { getToken, handleUnauthorized } from './token';
 import { parseApiError } from './error-handler';
 
 /**
@@ -51,13 +51,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error: AxiosError) => {
-        // Handle 401 Unauthorized: Clear token and redirect to login
+        // Handle 401 Unauthorized: Clear token and trigger callback
         if (error.response?.status === 401) {
-            clearToken();
-
-            // Only redirect if not already on login page
+            // Only handle if not already on login page
             if (!window.location.pathname.includes('/login')) {
-                window.location.href = '/login';
+                handleUnauthorized();
             }
         }
 

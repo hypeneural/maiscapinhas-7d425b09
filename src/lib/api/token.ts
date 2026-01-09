@@ -8,29 +8,53 @@
 // In-memory token store (primary)
 let memoryToken: string | null = null;
 
+// Initialization state
+let isInitialized = false;
+
+// Callback for unauthorized events
+let onUnauthorizedCallback: (() => void) | null = null;
+
 const TOKEN_KEY = 'mc_auth_token';
 
 /**
- * Get the current authentication token
+ * Initialize token from sessionStorage.
+ * Should be called once on app mount.
  */
-export function getToken(): string | null {
-  // Try memory first (fastest)
-  if (memoryToken) {
+export function initializeToken(): string | null {
+  if (isInitialized) {
     return memoryToken;
   }
 
-  // Fallback to sessionStorage
   try {
     const stored = sessionStorage.getItem(TOKEN_KEY);
     if (stored) {
       memoryToken = stored;
-      return stored;
     }
   } catch {
     // sessionStorage not available (e.g., private browsing)
   }
 
-  return null;
+  isInitialized = true;
+  return memoryToken;
+}
+
+/**
+ * Check if token has been initialized
+ */
+export function isTokenInitialized(): boolean {
+  return isInitialized;
+}
+
+/**
+ * Get the current authentication token.
+ * Returns null if not initialized yet.
+ */
+export function getToken(): string | null {
+  // Ensure we've initialized first
+  if (!isInitialized) {
+    initializeToken();
+  }
+  return memoryToken;
 }
 
 /**
@@ -73,4 +97,21 @@ export function isAuthenticated(): boolean {
 export function getAuthHeader(): string | null {
   const token = getToken();
   return token ? `Bearer ${token}` : null;
+}
+
+/**
+ * Set callback for unauthorized events (401).
+ * Called when token is cleared due to 401 response.
+ */
+export function setOnUnauthorized(callback: () => void): void {
+  onUnauthorizedCallback = callback;
+}
+
+/**
+ * Handle unauthorized event.
+ * Clears token and triggers callback.
+ */
+export function handleUnauthorized(): void {
+  clearToken();
+  onUnauthorizedCallback?.();
 }

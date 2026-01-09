@@ -46,7 +46,7 @@ export const DashboardVendedor: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-display font-bold">
-            Olá, {user?.nome.split(' ')[0]}! 👋
+            Olá, {user?.name?.split(' ')[0] || 'Vendedor'}! 👋
           </h1>
           <p className="text-muted-foreground">
             Vamos bater a meta hoje? Você consegue!

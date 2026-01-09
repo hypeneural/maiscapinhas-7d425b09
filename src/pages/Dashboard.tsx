@@ -1,21 +1,28 @@
+/**
+ * Dashboard Page
+ * 
+ * Renders the appropriate dashboard based on user's current role.
+ */
+
 import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { DashboardVendedor } from '@/components/dashboards/DashboardVendedor';
 import { DashboardConferente } from '@/components/dashboards/DashboardConferente';
 import { DashboardAdmin } from '@/components/dashboards/DashboardAdmin';
+import { Loader2 } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { currentRole, isLoading } = usePermissions();
 
-  if (!user) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Carregando...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  switch (user.role) {
+  switch (currentRole) {
     case 'vendedor':
       return <DashboardVendedor />;
     case 'conferente':
@@ -24,6 +31,7 @@ const Dashboard: React.FC = () => {
     case 'admin':
       return <DashboardAdmin />;
     default:
+      // Fallback to vendedor dashboard
       return <DashboardVendedor />;
   }
 };

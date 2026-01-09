@@ -2,6 +2,11 @@
  * Authentication Service
  * 
  * Handles login, logout, password reset, and user profile operations.
+ * 
+ * IMPORTANT: Backend uses Laravel Sanctum (not JWT).
+ * - Tokens don't expire automatically
+ * - No refresh token endpoint exists
+ * - Revocation via logout endpoints only
  */
 
 import { apiPost, apiGet, apiPut, setToken, clearToken } from '@/lib/api';
@@ -9,6 +14,7 @@ import type {
     ApiResponse,
     LoginResponse,
     CurrentUserResponse,
+    UserWithStores,
     User
 } from '@/types/api';
 
@@ -23,6 +29,7 @@ interface LoginCredentials {
 
 /**
  * Authenticate user and store token
+ * Returns the user data from login response
  */
 export async function login(credentials: LoginCredentials): Promise<User> {
     const response = await apiPost<ApiResponse<LoginResponse>>('/auth/login', {
@@ -30,7 +37,7 @@ export async function login(credentials: LoginCredentials): Promise<User> {
         device_name: credentials.device_name || `web-${navigator.userAgent.slice(0, 50)}`,
     });
 
-    // Store the token securely
+    // Store the token securely in sessionStorage
     setToken(response.data.token);
 
     return response.data.user;
@@ -38,6 +45,7 @@ export async function login(credentials: LoginCredentials): Promise<User> {
 
 /**
  * Logout current session
+ * Clears token even if API call fails
  */
 export async function logout(): Promise<void> {
     try {
@@ -45,6 +53,8 @@ export async function logout(): Promise<void> {
     } finally {
         // Always clear token, even if API call fails
         clearToken();
+        // Also clear store selection
+        sessionStorage.removeItem('currentStoreId');
     }
 }
 
@@ -56,15 +66,24 @@ export async function logoutAll(): Promise<void> {
         await apiPost('/auth/logout-all');
     } finally {
         clearToken();
+        sessionStorage.removeItem('currentStoreId');
     }
 }
 
 /**
- * Get current authenticated user
+ * Get current authenticated user with their stores
+ * 
+ * Backend returns: { data: { user: {...}, stores: [...] } }
+ * We merge this into a single UserWithStores object for convenience
  */
-export async function getCurrentUser(): Promise<User> {
+export async function getCurrentUser(): Promise<UserWithStores> {
     const response = await apiGet<ApiResponse<CurrentUserResponse>>('/me');
-    return response.data.user;
+
+    // Merge user and stores into a single object
+    return {
+        ...response.data.user,
+        stores: response.data.stores,
+    };
 }
 
 /**

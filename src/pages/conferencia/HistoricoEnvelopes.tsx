@@ -1,353 +1,524 @@
-import React, { useState } from 'react';
-import { History, Search, Filter, Calendar, CheckCircle, XCircle, Clock, Eye } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+/**
+ * Histórico de Envelopes Page (Refactored)
+ * 
+ * Modern interface for viewing cash shift history with filters and stats.
+ * Features expandable rows and integrity reports.
+ */
+
+import React, { useState, useMemo } from 'react';
+import {
+  History, Store, Calendar, CheckCircle, XCircle, Clock,
+  TrendingUp, AlertTriangle, FileCheck, ChevronDown, ChevronUp,
+  Loader2, BarChart3, Eye
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/PageHeader';
-import { StatusBadge } from '@/components/StatusBadge';
-import { turnos, usuarios, lojas } from '@/data/mockData';
+import { useAdminStores } from '@/hooks/api/use-admin-stores';
+import { useCashShifts } from '@/hooks/api/use-cash-shifts';
+import { useCashIntegrityReport } from '@/hooks/api/use-cash-closings';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { SHIFT_CODES, type CashShift, type ShiftCode } from '@/types/conference.types';
 
-const HistoricoEnvelopes: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedLoja, setSelectedLoja] = useState<string>('todas');
-  const [selectedStatus, setSelectedStatus] = useState<string>('todos');
-  const [selectedTurno, setSelectedTurno] = useState<typeof turnos[0] | null>(null);
+// ============================================================
+// Constants
+// ============================================================
 
-  // Filtrar turnos
-  const turnosFiltrados = turnos.filter(turno => {
-    const vendedor = usuarios.find(u => u.id === turno.vendedorId);
-    const loja = lojas.find(l => l.id === turno.lojaId);
-    
-    const matchSearch = searchTerm === '' || 
-      vendedor?.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      loja?.nome.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchLoja = selectedLoja === 'todas' || turno.lojaId === selectedLoja;
-    const matchStatus = selectedStatus === 'todos' || turno.status === selectedStatus;
+const formatCurrency = (value: number | undefined | null) => {
+  if (value === undefined || value === null) return '—';
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+};
 
-    return matchSearch && matchLoja && matchStatus;
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '—';
+  try {
+    // Handle both ISO format and YYYY-MM-DD
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString('pt-BR');
+  } catch {
+    return '—';
+  }
+};
+
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'approved':
+      return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">Aprovado</Badge>;
+    case 'rejected':
+      return <Badge variant="destructive">Rejeitado</Badge>;
+    case 'submitted':
+      return <Badge variant="secondary">Aguardando</Badge>;
+    case 'draft':
+      return <Badge variant="outline">Rascunho</Badge>;
+    case 'closed':
+      return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">Fechado</Badge>;
+    case 'open':
+      return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">Aberto</Badge>;
+    default:
+      return <Badge variant="outline">Pendente</Badge>;
+  }
+};
+
+const getIntegrityColor = (status: string) => {
+  switch (status) {
+    case 'GREEN': return 'text-green-600 bg-green-500/10';
+    case 'YELLOW': return 'text-amber-600 bg-amber-500/10';
+    case 'RED': return 'text-destructive bg-destructive/10';
+    default: return 'text-muted-foreground bg-muted';
+  }
+};
+
+// ============================================================
+// Detail Dialog Component
+// ============================================================
+
+interface DetailDialogProps {
+  shift: CashShift | null;
+  onClose: () => void;
+}
+
+function DetailDialog({ shift, onClose }: DetailDialogProps) {
+  if (!shift) return null;
+
+  const closing = shift.cash_closing;
+  const hasClosing = closing && closing.lines && closing.lines.length > 0;
+
+  const totalSystem = hasClosing ? closing.lines.reduce((s, l) => s + l.system_value, 0) : 0;
+  const totalReal = hasClosing ? closing.lines.reduce((s, l) => s + l.real_value, 0) : 0;
+  const totalDiff = hasClosing ? closing.lines.reduce((s, l) => s + l.diff_value, 0) : 0;
+
+  return (
+    <Dialog open={!!shift} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5" />
+            Detalhes do Turno
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Shift Info */}
+          <div className="flex flex-wrap items-center gap-2 pb-4 border-b">
+            <Badge variant="outline">{shift.store?.name || 'Loja'}</Badge>
+            <Badge variant="outline">{formatDate(shift.date)}</Badge>
+            <Badge variant="outline">{SHIFT_CODES[shift.shift_code]}</Badge>
+            <Badge variant="outline">{shift.seller?.name || 'Vendedor'}</Badge>
+            {getStatusBadge(shift.status)}
+          </div>
+
+          {/* Closing Lines */}
+          {hasClosing ? (
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Formas de Pagamento</Label>
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left p-3 font-medium">Forma</th>
+                      <th className="text-right p-3 font-medium">Sistema</th>
+                      <th className="text-right p-3 font-medium">Real</th>
+                      <th className="text-right p-3 font-medium">Diferença</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {closing.lines.map(line => (
+                      <tr key={line.id} className={cn(
+                        'border-t',
+                        line.diff_value !== 0 && 'bg-destructive/5'
+                      )}>
+                        <td className="p-3 font-medium">{line.label}</td>
+                        <td className="p-3 text-right font-mono">{formatCurrency(line.system_value)}</td>
+                        <td className="p-3 text-right font-mono">{formatCurrency(line.real_value)}</td>
+                        <td className={cn(
+                          'p-3 text-right font-mono font-medium',
+                          line.diff_value === 0 ? 'text-green-600' : 'text-destructive'
+                        )}>
+                          {formatCurrency(line.diff_value)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-muted/50 font-medium">
+                    <tr>
+                      <td className="p-3">TOTAL</td>
+                      <td className="p-3 text-right font-mono">{formatCurrency(totalSystem)}</td>
+                      <td className="p-3 text-right font-mono">{formatCurrency(totalReal)}</td>
+                      <td className={cn(
+                        'p-3 text-right font-mono',
+                        totalDiff === 0 ? 'text-green-600' : 'text-destructive'
+                      )}>
+                        {formatCurrency(totalDiff)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {closing.closed_by_user && (
+                <div className="text-sm text-muted-foreground pt-2">
+                  Conferido por <strong>{closing.closed_by_user.name}</strong> em{' '}
+                  {closing.closed_at ? formatDate(closing.closed_at) : '—'}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground">
+              <FileCheck className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>Nenhum fechamento registrado para este turno.</p>
+              <p className="text-sm">O vendedor ainda não preencheu os valores.</p>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================================
+// Shift Row Component
+// ============================================================
+
+interface ShiftRowProps {
+  shift: CashShift;
+  onClick: () => void;
+}
+
+function ShiftRow({ shift, onClick }: ShiftRowProps) {
+  const lines = shift.cash_closing?.lines || [];
+  const totalReal = lines.reduce((s, l) => s + l.real_value, 0);
+  const totalDiff = lines.reduce((s, l) => s + l.diff_value, 0);
+  const hasClosing = lines.length > 0;
+
+  return (
+    <div
+      className="grid grid-cols-12 gap-4 p-4 border-b hover:bg-muted/50 cursor-pointer transition-colors"
+      onClick={onClick}
+    >
+      {/* Date + Shift */}
+      <div className="col-span-3 flex items-center gap-2">
+        <Calendar className="h-4 w-4 text-muted-foreground" />
+        <span className="font-medium">{formatDate(shift.date)}</span>
+        <Badge variant="outline" className="text-xs">
+          {SHIFT_CODES[shift.shift_code]}
+        </Badge>
+      </div>
+
+      {/* Store */}
+      <div className="col-span-2 flex items-center">
+        <span className="text-sm truncate">{shift.store?.name || '—'}</span>
+      </div>
+
+      {/* Seller */}
+      <div className="col-span-3 flex items-center gap-2">
+        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+          {shift.seller?.name?.charAt(0).toUpperCase() || '?'}
+        </div>
+        <span className="text-sm truncate">{shift.seller?.name || '—'}</span>
+      </div>
+
+      {/* Values */}
+      <div className="col-span-2 text-right">
+        {hasClosing ? (
+          <>
+            <p className="text-sm font-mono">{formatCurrency(totalReal)}</p>
+            {totalDiff !== 0 && (
+              <p className={cn(
+                'text-xs font-mono',
+                totalDiff < 0 ? 'text-destructive' : 'text-green-600'
+              )}>
+                {totalDiff >= 0 ? '+' : ''}{formatCurrency(totalDiff)}
+              </p>
+            )}
+          </>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        )}
+      </div>
+
+      {/* Status */}
+      <div className="col-span-2 flex items-center justify-end">
+        {shift.cash_closing?.status
+          ? getStatusBadge(shift.cash_closing.status)
+          : getStatusBadge(shift.status)}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Main Component
+// ============================================================
+
+const HistoricoEnvelopesPage: React.FC = () => {
+  const [storeFilter, setStoreFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const [selectedShift, setSelectedShift] = useState<CashShift | null>(null);
+
+  // Get current month for reports
+  const currentMonth = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  // Queries
+  const { data: storesData } = useAdminStores({ per_page: 100 });
+  const { data: shiftsData, isLoading } = useCashShifts({
+    store_id: storeFilter !== 'all' ? parseInt(storeFilter) : undefined,
+    date: dateFilter || undefined,
+    page,
+    per_page: 25,
   });
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'conferido': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'divergente': return <XCircle className="w-4 h-4 text-red-600" />;
-      case 'pendente': return <Clock className="w-4 h-4 text-yellow-600" />;
-      default: return null;
-    }
-  };
+  // Report for selected store
+  const { data: reportData } = useCashIntegrityReport(
+    storeFilter !== 'all' ? parseInt(storeFilter) : 0,
+    currentMonth,
+    storeFilter !== 'all'
+  );
 
-  const getStatusVariant = (status: string): 'success' | 'error' | 'warning' => {
-    switch (status) {
-      case 'conferido': return 'success';
-      case 'divergente': return 'error';
-      default: return 'warning';
-    }
-  };
+  const report = reportData?.data;
+  const shifts = shiftsData?.data || [];
 
-  const getTurnoLabel = (turno: string) => {
-    switch (turno) {
-      case 'manha': return 'Manhã';
-      case 'tarde': return 'Tarde';
-      case 'noite': return 'Noite';
-      default: return turno;
-    }
-  };
-
-  // Estatísticas
-  const stats = {
-    total: turnos.length,
-    conferidos: turnos.filter(t => t.status === 'conferido').length,
-    pendentes: turnos.filter(t => t.status === 'pendente').length,
-    divergentes: turnos.filter(t => t.status === 'divergente').length,
-  };
+  // Handle pagination - API returns nested pagination
+  const pagination = shiftsData?.meta?.pagination || shiftsData?.meta;
+  const totalPages = pagination?.last_page || 1;
+  const currentPage = pagination?.current_page || 1;
+  const total = pagination?.total || 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Histórico de Envelopes"
-        description="Consulta de fechamentos passados"
+        description="Consulte os fechamentos de caixa anteriores"
         icon={History}
       />
 
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold">{stats.total}</p>
-              <p className="text-sm text-muted-foreground">Total de Turnos</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-600">{stats.conferidos}</p>
-              <p className="text-sm text-muted-foreground">Conferidos</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-yellow-600">{stats.pendentes}</p>
-              <p className="text-sm text-muted-foreground">Pendentes</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-red-600">{stats.divergentes}</p>
-              <p className="text-sm text-muted-foreground">Com Divergência</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Stats Cards (when store is selected) */}
+      {report && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className={cn('border-2', getIntegrityColor(report.cash_integrity.status))}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className={cn('p-3 rounded-full', getIntegrityColor(report.cash_integrity.status))}>
+                  {report.cash_integrity.status === 'GREEN' ? (
+                    <CheckCircle className="h-6 w-6" />
+                  ) : report.cash_integrity.status === 'YELLOW' ? (
+                    <AlertTriangle className="h-6 w-6" />
+                  ) : (
+                    <XCircle className="h-6 w-6" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Integridade</p>
+                  <p className="text-2xl font-bold">
+                    {report.cash_integrity.cash_break_percentage.toFixed(2)}%
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Filtros */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-primary/10">
+                  <FileCheck className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Turnos Fechados</p>
+                  <p className="text-2xl font-bold">
+                    {report.workflow_status.closed_count}/{report.workflow_status.total_shifts}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-amber-500/10">
+                  <BarChart3 className="h-6 w-6 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Taxa Conclusão</p>
+                  <p className="text-2xl font-bold">
+                    {report.workflow_status.completion_rate.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-green-500/10">
+                  <TrendingUp className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Justificadas</p>
+                  <p className="text-2xl font-bold">
+                    {report.divergence_analysis.justified_rate.toFixed(0)}%
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Alerts */}
+      {report?.alerts && report.alerts.length > 0 && (
+        <div className="space-y-2">
+          {report.alerts.map((alert, index) => (
+            <div
+              key={index}
+              className={cn(
+                'p-3 rounded-lg flex items-center gap-3',
+                alert.type === 'CRITICAL' && 'bg-destructive/10 text-destructive',
+                alert.type === 'WARNING' && 'bg-amber-500/10 text-amber-600',
+                alert.type === 'INFO' && 'bg-blue-500/10 text-blue-600'
+              )}
+            >
+              <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+              <span className="text-sm">{alert.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="flex flex-wrap gap-4">
+            <div className="w-[200px]">
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Loja</Label>
+              <Select value={storeFilter} onValueChange={setStoreFilter}>
+                <SelectTrigger>
+                  <Store className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as lojas</SelectItem>
+                  {storesData?.data?.map(store => (
+                    <SelectItem key={store.id} value={String(store.id)}>
+                      {store.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-[180px]">
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Data</Label>
               <Input
-                placeholder="Buscar por vendedor ou loja..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                placeholder="Filtrar por data"
               />
             </div>
-            <Select value={selectedLoja} onValueChange={setSelectedLoja}>
-              <SelectTrigger className="w-full md:w-[200px]">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Filtrar loja" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas as Lojas</SelectItem>
-                {lojas.map(loja => (
-                  <SelectItem key={loja.id} value={loja.id}>{loja.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-full md:w-[160px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="conferido">Conferido</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="divergente">Divergente</SelectItem>
-              </SelectContent>
-            </Select>
+
+            {(storeFilter !== 'all' || dateFilter) && (
+              <div className="flex items-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setStoreFilter('all');
+                    setDateFilter('');
+                  }}
+                >
+                  Limpar filtros
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabela de Histórico */}
+      {/* Data List */}
       <Card>
-        <CardHeader>
-          <CardTitle>Envelopes ({turnosFiltrados.length})</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="text-left py-3 px-4 font-semibold">Status</th>
-                  <th className="text-left py-3 px-4 font-semibold">Data</th>
-                  <th className="text-left py-3 px-4 font-semibold">Turno</th>
-                  <th className="text-left py-3 px-4 font-semibold">Vendedor</th>
-                  <th className="text-left py-3 px-4 font-semibold">Loja</th>
-                  <th className="text-right py-3 px-4 font-semibold">Valor Sistema</th>
-                  <th className="text-right py-3 px-4 font-semibold">Valor Real</th>
-                  <th className="text-right py-3 px-4 font-semibold">Diferença</th>
-                  <th className="text-center py-3 px-4 font-semibold">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {turnosFiltrados.map((turno) => {
-                  const vendedor = usuarios.find(u => u.id === turno.vendedorId);
-                  const loja = lojas.find(l => l.id === turno.lojaId);
-                  const conferente = usuarios.find(u => u.id === turno.conferenteId);
+        {/* Header */}
+        <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/50 text-sm font-medium text-muted-foreground">
+          <div className="col-span-3">Data / Turno</div>
+          <div className="col-span-2">Loja</div>
+          <div className="col-span-3">Vendedor</div>
+          <div className="col-span-2 text-right">Valores</div>
+          <div className="col-span-2 text-right">Status</div>
+        </div>
 
-                  return (
-                    <tr 
-                      key={turno.id} 
-                      className={cn(
-                        'border-b transition-colors hover:bg-muted/50',
-                        turno.status === 'divergente' && 'bg-destructive/5'
-                      )}
-                    >
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(turno.status)}
-                          <StatusBadge variant={getStatusVariant(turno.status)}>
-                            {turno.status === 'conferido' ? 'Conferido' : 
-                             turno.status === 'divergente' ? 'Divergente' : 'Pendente'}
-                          </StatusBadge>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-muted-foreground" />
-                          {format(new Date(turno.data), 'dd/MM/yyyy', { locale: ptBR })}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <StatusBadge variant="default">
-                          {getTurnoLabel(turno.turno)}
-                        </StatusBadge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
-                            {vendedor?.nome.charAt(0)}
-                          </div>
-                          <span>{vendedor?.nome}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground">{loja?.nome}</td>
-                      <td className="py-3 px-4 text-right font-medium">
-                        R$ {turno.valorSistema.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="py-3 px-4 text-right font-medium">
-                        {turno.valorReal !== undefined 
-                          ? `R$ ${turno.valorReal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                          : '-'
-                        }
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {turno.diferenca !== undefined ? (
-                          <span className={cn(
-                            'font-bold',
-                            turno.diferenca === 0 ? 'text-green-600' : 'text-destructive'
-                          )}>
-                            R$ {turno.diferenca.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
-                        ) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setSelectedTurno(turno)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-lg">
-                            <DialogHeader>
-                              <DialogTitle>Detalhes do Envelope</DialogTitle>
-                            </DialogHeader>
-                            {selectedTurno && (
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Data</p>
-                                    <p className="font-medium">
-                                      {format(new Date(selectedTurno.data), 'dd/MM/yyyy', { locale: ptBR })}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Turno</p>
-                                    <p className="font-medium">{getTurnoLabel(selectedTurno.turno)}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Vendedor</p>
-                                    <p className="font-medium">{vendedor?.nome}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Loja</p>
-                                    <p className="font-medium">{loja?.nome}</p>
-                                  </div>
-                                </div>
-                                <div className="border-t pt-4">
-                                  <div className="grid grid-cols-3 gap-4 text-center">
-                                    <div className="p-3 bg-muted rounded-lg">
-                                      <p className="text-sm text-muted-foreground">Sistema</p>
-                                      <p className="text-lg font-bold">
-                                        R$ {selectedTurno.valorSistema.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                      </p>
-                                    </div>
-                                    <div className="p-3 bg-muted rounded-lg">
-                                      <p className="text-sm text-muted-foreground">Real</p>
-                                      <p className="text-lg font-bold">
-                                        {selectedTurno.valorReal !== undefined 
-                                          ? `R$ ${selectedTurno.valorReal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                                          : '-'
-                                        }
-                                      </p>
-                                    </div>
-                                    <div className={cn(
-                                      'p-3 rounded-lg',
-                                      selectedTurno.diferenca === 0 ? 'bg-green-500/10' : 'bg-red-500/10'
-                                    )}>
-                                      <p className="text-sm text-muted-foreground">Diferença</p>
-                                      <p className={cn(
-                                        'text-lg font-bold',
-                                        selectedTurno.diferenca === 0 ? 'text-green-600' : 'text-red-600'
-                                      )}>
-                                        {selectedTurno.diferenca !== undefined 
-                                          ? `R$ ${selectedTurno.diferenca.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                                          : '-'
-                                        }
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                                {selectedTurno.justificativa && (
-                                  <div className="border-t pt-4">
-                                    <p className="text-sm text-muted-foreground mb-1">Justificativa</p>
-                                    <p className="text-sm bg-muted p-3 rounded-lg">{selectedTurno.justificativa}</p>
-                                  </div>
-                                )}
-                                {conferente && (
-                                  <div className="border-t pt-4">
-                                    <p className="text-sm text-muted-foreground mb-1">Conferido por</p>
-                                    <p className="font-medium">{conferente.nome}</p>
-                                    {selectedTurno.dataConferencia && (
-                                      <p className="text-sm text-muted-foreground">
-                                        em {format(new Date(selectedTurno.dataConferencia), 'dd/MM/yyyy', { locale: ptBR })}
-                                      </p>
-                                    )}
-                                  </div>
-                                )}
-                                <div className="flex items-center justify-between pt-4 border-t">
-                                  <span className="text-sm text-muted-foreground">Bônus Elegível</span>
-                                  <StatusBadge variant={selectedTurno.bonusElegivel ? 'success' : 'error'}>
-                                    {selectedTurno.bonusElegivel ? 'Sim' : 'Não'}
-                                  </StatusBadge>
-                                </div>
-                              </div>
-                            )}
-                          </DialogContent>
-                        </Dialog>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {/* Loading */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-          {turnosFiltrados.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              Nenhum envelope encontrado com os filtros selecionados.
+        )}
+
+        {/* Empty */}
+        {!isLoading && shifts.length === 0 && (
+          <div className="py-12 text-center text-muted-foreground">
+            <History className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>Nenhum turno encontrado</p>
+          </div>
+        )}
+
+        {/* Rows */}
+        {!isLoading && shifts.map(shift => (
+          <ShiftRow
+            key={shift.id}
+            shift={shift}
+            onClick={() => setSelectedShift(shift)}
+          />
+        ))}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between p-4 border-t">
+            <p className="text-sm text-muted-foreground">
+              {total} registros • Página {currentPage} de {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+              >
+                Próxima
+              </Button>
             </div>
-          )}
-        </CardContent>
+          </div>
+        )}
       </Card>
+
+      {/* Detail Dialog */}
+      <DetailDialog
+        shift={selectedShift}
+        onClose={() => setSelectedShift(null)}
+      />
     </div>
   );
 };
 
-export default HistoricoEnvelopes;
+export default HistoricoEnvelopesPage;

@@ -13,7 +13,7 @@ import { loginSchema, type LoginFormData } from '@/schemas/auth.schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, LogIn, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Loader2, LogIn, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const Login: React.FC = () => {
@@ -22,6 +22,19 @@ const Login: React.FC = () => {
     const loginMutation = useLogin();
     const [showPassword, setShowPassword] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [focusedField, setFocusedField] = useState<'email' | 'password' | null>(null);
+    const [previousImage, setPreviousImage] = useState<string>('/assets/10.webp');
+    const [isTransitioning, setIsTransitioning] = useState(false);
+
+    // Avatar image mapping
+    const AVATAR_IMAGES = {
+        default: '/assets/avatars/10.webp',
+        email: '/assets/avatars/1.webp',
+        password: '/assets/avatars/2.webp',
+        error: '/assets/avatars/4.webp',
+        submitting: '/assets/avatars/6.webp',
+        peek: '/assets/avatars/11.webp',
+    } as const;
 
     // Animation delays
     useEffect(() => {
@@ -46,6 +59,41 @@ const Login: React.FC = () => {
 
     const email = watch('email');
     const password = watch('password');
+
+    // Logic to determine which image to show
+    const getAvatarImage = (): string => {
+        // 1. Submitting
+        if (loginMutation.isPending || isSubmitting) return AVATAR_IMAGES.submitting;
+
+        // 2. Error State (if any field has error)
+        if (errors.email || errors.password) return AVATAR_IMAGES.error;
+
+        // 3. Show Password (Peeking)
+        if (showPassword && password) return AVATAR_IMAGES.peek;
+
+        // 4. Focus Password (Hiding/Secret)
+        if (focusedField === 'password') return AVATAR_IMAGES.password;
+
+        // 5. Focus Email (Writing)
+        if (focusedField === 'email') return AVATAR_IMAGES.email;
+
+        // 6. Default
+        return AVATAR_IMAGES.default;
+    };
+
+    const currentImage = getAvatarImage();
+
+    // Handle smooth image transitions
+    useEffect(() => {
+        if (previousImage !== currentImage) {
+            setIsTransitioning(true);
+            const timer = setTimeout(() => {
+                setPreviousImage(currentImage);
+                setIsTransitioning(false);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [currentImage, previousImage]);
 
     const onSubmit = async (data: LoginFormData) => {
         try {
@@ -98,42 +146,71 @@ const Login: React.FC = () => {
                     )}
                 >
                     {/* Glass Card */}
-                    <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 shadow-2xl">
+                    <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl pt-0 px-8 pb-8 shadow-2xl overflow-hidden">
                         {/* Glow effect */}
                         <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/50 via-pink-500/50 to-purple-500/50 rounded-3xl blur opacity-30 group-hover:opacity-50 transition-opacity" />
 
                         <div className="relative">
-                            {/* Logo */}
+                            {/* Dynamic Avatar - Full Width */}
                             <div
                                 className={cn(
-                                    "flex justify-center mb-8 transition-all duration-700 delay-200",
+                                    "relative w-full mb-6 transition-all duration-700",
                                     mounted ? "opacity-100 scale-100" : "opacity-0 scale-95"
                                 )}
                             >
-                                <div className="relative group">
-                                    <div className="absolute -inset-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity animate-pulse" />
-                                    <img
-                                        src="/logo.png"
-                                        alt="MaisCapinhas"
-                                        className="relative w-32 h-32 object-contain drop-shadow-2xl transition-transform duration-300 group-hover:scale-105"
+                                <div
+                                    className={cn(
+                                        "relative w-full",
+                                        isTransitioning && "animate-avatar-bounce"
+                                    )}
+                                >
+                                    {/* Soft radial glow - ultra light and smoky */}
+                                    <div
+                                        className={cn(
+                                            "absolute inset-0 transition-all duration-700",
+                                            "rounded-full blur-3xl scale-150 -translate-y-4"
+                                        )}
+                                        style={{
+                                            background: (errors.email || errors.password)
+                                                ? "radial-gradient(ellipse at center, rgba(254,205,211,0.8) 0%, rgba(254,205,211,0) 70%)"
+                                                : loginMutation.isPending
+                                                    ? "radial-gradient(ellipse at center, rgba(254,243,199,0.8) 0%, rgba(254,243,199,0) 70%)"
+                                                    : showPassword && password
+                                                        ? "radial-gradient(ellipse at center, rgba(224,242,254,0.8) 0%, rgba(224,242,254,0) 70%)"
+                                                        : focusedField === 'email'
+                                                            ? "radial-gradient(ellipse at center, rgba(209,250,229,0.8) 0%, rgba(209,250,229,0) 70%)"
+                                                            : focusedField === 'password'
+                                                                ? "radial-gradient(ellipse at center, rgba(254,243,199,0.8) 0%, rgba(254,243,199,0) 70%)"
+                                                                : "radial-gradient(ellipse at center, rgba(243,232,255,0.6) 0%, rgba(243,232,255,0) 70%)"
+                                        }}
                                     />
+
+                                    {/* Avatar container - full width, auto height for rectangles */}
+                                    <div className="relative w-full">
+                                        {/* Previous image (fading out) */}
+                                        <img
+                                            src={previousImage}
+                                            alt=""
+                                            className={cn(
+                                                "absolute inset-0 w-full h-full object-contain transition-all duration-300 ease-out",
+                                                isTransitioning ? "opacity-0 scale-95" : "opacity-100 scale-100"
+                                            )}
+                                        />
+                                        {/* Current image (fading in) */}
+                                        <img
+                                            src={currentImage}
+                                            alt="MaisCapinhas Avatar"
+                                            className={cn(
+                                                "relative w-full h-auto object-contain transition-all duration-300 ease-out",
+                                                isTransitioning ? "opacity-100 scale-100 animate-avatar-bounce" : "opacity-100 scale-100",
+                                                "group-hover:scale-[1.02]",
+                                                (errors.email || errors.password) && "animate-wobble"
+                                            )}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Title */}
-                            <div
-                                className={cn(
-                                    "text-center mb-8 transition-all duration-700 delay-300",
-                                    mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-                                )}
-                            >
-                                <h1 className="text-3xl font-display font-bold text-white mb-2 flex items-center justify-center gap-2">
-                                    <Sparkles className="w-6 h-6 text-purple-400 animate-pulse" />
-                                    MaisCapinhas ERP
-                                    <Sparkles className="w-6 h-6 text-pink-400 animate-pulse" style={{ animationDelay: '0.5s' }} />
-                                </h1>
-                                <p className="text-white/60">Faça login para continuar</p>
-                            </div>
 
                             {/* Form */}
                             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -162,6 +239,8 @@ const Login: React.FC = () => {
                                                 email && "border-purple-500/30"
                                             )}
                                             {...register('email')}
+                                            onFocus={() => setFocusedField('email')}
+                                            onBlur={() => setFocusedField(null)}
                                         />
                                     </div>
                                     {errors.email && (
@@ -194,6 +273,8 @@ const Login: React.FC = () => {
                                                 password && "border-purple-500/30"
                                             )}
                                             {...register('password')}
+                                            onFocus={() => setFocusedField('password')}
+                                            onBlur={() => setFocusedField(null)}
                                         />
                                         <button
                                             type="button"
@@ -283,11 +364,35 @@ const Login: React.FC = () => {
         }
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-5px); }
-          75% { transform: translateX(5px); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+          20%, 40%, 60%, 80% { transform: translateX(4px); }
         }
         .animate-shake {
-          animation: shake 0.3s ease-in-out;
+          animation: shake 0.5s ease-in-out;
+        }
+        @keyframes avatar-bounce {
+          0%, 100% { transform: scale(1); }
+          25% { transform: scale(0.95); }
+          50% { transform: scale(1.05); }
+          75% { transform: scale(0.98); }
+        }
+        .animate-avatar-bounce {
+          animation: avatar-bounce 0.4s ease-out;
+        }
+        @keyframes gentle-wobble {
+          0%, 100% { transform: rotate(0deg); }
+          25% { transform: rotate(-2deg); }
+          75% { transform: rotate(2deg); }
+        }
+        .animate-wobble {
+          animation: gentle-wobble 2s ease-in-out infinite;
+        }
+        @keyframes glow-pulse {
+          0%, 100% { opacity: 0.4; filter: blur(16px); }
+          50% { opacity: 0.7; filter: blur(20px); }
+        }
+        .animate-glow-pulse {
+          animation: glow-pulse 2s ease-in-out infinite;
         }
       `}</style>
         </div>

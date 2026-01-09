@@ -2,38 +2,70 @@
  * Dashboard Service
  * 
  * Fetches dashboard data for different user roles.
+ * Each role has its own endpoint as per backend specification.
  */
 
 import { apiGet } from '@/lib/api';
 import type {
     ApiResponse,
     SellerDashboard,
-    StoreDashboard,
+    ConferenteDashboard,
     AdminDashboard
 } from '@/types/api';
 
 /**
- * Get seller's personal dashboard
+ * Dashboard filters for vendedor/conferente
  */
-export async function getSellerDashboard(storeId?: number): Promise<SellerDashboard> {
-    const params = storeId ? { store_id: storeId } : {};
-    const response = await apiGet<ApiResponse<SellerDashboard>>('/dashboard/seller', params);
+interface DashboardFilters {
+    store_id: number;
+    date?: string; // YYYY-MM-DD format
+}
+
+/**
+ * Admin dashboard filters
+ */
+interface AdminDashboardFilters {
+    month?: string; // YYYY-MM format
+}
+
+/**
+ * Get seller's personal dashboard
+ * Requires store_id as the backend needs context
+ */
+export async function getSellerDashboard(
+    storeId: number,
+    date?: string
+): Promise<SellerDashboard> {
+    const params: Record<string, unknown> = { store_id: storeId };
+    if (date) params.date = date;
+
+    const response = await apiGet<ApiResponse<SellerDashboard>>('/dashboard/vendedor', params);
     return response.data;
 }
 
 /**
- * Get store dashboard (for conferentes/gerentes)
+ * Get conferente dashboard
+ * Requires store_id as the backend needs context
  */
-export async function getStoreDashboard(storeId?: number): Promise<StoreDashboard> {
-    const params = storeId ? { store_id: storeId } : {};
-    const response = await apiGet<ApiResponse<StoreDashboard>>('/dashboard/store', params);
+export async function getConferenteDashboard(
+    storeId: number,
+    date?: string
+): Promise<ConferenteDashboard> {
+    const params: Record<string, unknown> = { store_id: storeId };
+    if (date) params.date = date;
+
+    const response = await apiGet<ApiResponse<ConferenteDashboard>>('/dashboard/conferente', params);
     return response.data;
 }
 
 /**
  * Get admin consolidated dashboard
+ * Shows all stores the admin/gerente has access to
  */
-export async function getAdminDashboard(): Promise<AdminDashboard> {
-    const response = await apiGet<ApiResponse<AdminDashboard>>('/dashboard/admin');
+export async function getAdminDashboard(month?: string): Promise<AdminDashboard> {
+    const params: Record<string, unknown> = {};
+    if (month) params.month = month;
+
+    const response = await apiGet<ApiResponse<AdminDashboard>>('/dashboard/admin', params);
     return response.data;
 }

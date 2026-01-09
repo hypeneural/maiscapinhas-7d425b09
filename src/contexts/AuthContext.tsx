@@ -2,21 +2,26 @@
  * Authentication Context
  * 
  * Provides authentication state and utilities throughout the app.
- * Refactored to use real API via React Query hooks.
+ * Uses React Query for data fetching and token management for persistence.
  */
 
-import React, { createContext, useContext, useCallback, useMemo } from 'react';
-import { useCurrentUser, useLogout, hasRole, hasAccessToStore, getHighestRole } from '@/hooks/api/use-auth';
-import type { User, UserRole } from '@/types/api';
+import React, { createContext, useContext, useCallback, useMemo, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCurrentUser, useLogout, hasRole, hasAccessToStore, getHighestRole, authKeys } from '@/hooks/api/use-auth';
+import { initializeToken, setOnUnauthorized, clearToken } from '@/lib/api';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import type { UserWithStores, UserRole } from '@/types/api';
 
 interface AuthContextType {
-  user: User | null;
+  user: UserWithStores | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   logout: () => void;
   hasRole: (role: UserRole) => boolean;
   hasAccessToStore: (storeId: number) => boolean;
   highestRole: UserRole | null;
+  currentStoreId: number | null;
+  setCurrentStoreId: (id: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,8 +31,52 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const { data: user, isLoading, isError } = useCurrentUser();
+  const queryClient = useQueryClient();
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [currentStoreId, setCurrentStoreId] = useState<number | null>(() => {
+    // Restore from sessionStorage
+    const saved = sessionStorage.getItem('currentStoreId');
+    return saved ? parseInt(saved, 10) : null;
+  });
+  const { data: user, isLoading: isLoadingUser, isError } = useCurrentUser();
   const logoutMutation = useLogout();
+
+  // Auto-select first store when user loads and no store is selected
+  useEffect(() => {
+    if (user?.stores?.length && !currentStoreId) {
+      const firstStoreId = user.stores[0].id;
+      setCurrentStoreId(firstStoreId);
+      sessionStorage.setItem('currentStoreId', String(firstStoreId));
+    }
+  }, [user, currentStoreId]);
+
+  // Persist store selection
+  const handleSetCurrentStoreId = useCallback((id: number) => {
+    setCurrentStoreId(id);
+    sessionStorage.setItem('currentStoreId', String(id));
+  }, []);
+
+  // Initialize token and set up unauthorized handler on mount
+  useEffect(() => {
+    // Restore token from sessionStorage
+    initializeToken();
+
+    // Set up handler for 401 errors
+    setOnUnauthorized(() => {
+      // Clear React Query cache
+      queryClient.setQueryData(authKeys.user(), null);
+      queryClient.clear();
+      // Redirect to login
+      window.location.href = '/login';
+    });
+
+    setIsInitialized(true);
+  }, [queryClient]);
+
+  // Session timeout (only when authenticated)
+  useSessionTimeout({
+    enabled: !!user && isInitialized,
+  });
 
   const handleLogout = useCallback(() => {
     logoutMutation.mutate();
@@ -41,6 +90,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return hasAccessToStore(user, storeId);
   }, [user]);
 
+  // Loading is true until initialized AND user query completes
+  const isLoading = !isInitialized || isLoadingUser;
+
   const value = useMemo<AuthContextType>(() => ({
     user: user ?? null,
     isLoading,
@@ -49,7 +101,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     hasRole: checkHasRole,
     hasAccessToStore: checkHasAccessToStore,
     highestRole: getHighestRole(user) as UserRole | null,
-  }), [user, isLoading, isError, handleLogout, checkHasRole, checkHasAccessToStore]);
+    currentStoreId,
+    setCurrentStoreId: handleSetCurrentStoreId,
+  }), [user, isLoading, isError, handleLogout, checkHasRole, checkHasAccessToStore, currentStoreId, handleSetCurrentStoreId]);
 
   return (
     <AuthContext.Provider value={value}>
