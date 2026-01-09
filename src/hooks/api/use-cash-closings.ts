@@ -30,10 +30,19 @@ export const cashClosingKeys = {
 // Queries
 // ============================================================
 
+interface UseCashClosingOptions {
+    enabled?: boolean;
+}
+
 /**
  * Get closing details for a shift
  */
-export function useCashClosing(shiftId: number, enabled = true) {
+export function useCashClosing(shiftId: number, options?: UseCashClosingOptions | boolean) {
+    // Handle both old boolean and new object format
+    const enabled = typeof options === 'boolean' 
+        ? options 
+        : (options?.enabled ?? true);
+
     return useQuery({
         queryKey: cashClosingKeys.detail(shiftId),
         queryFn: () => cashClosingsService.get(shiftId),

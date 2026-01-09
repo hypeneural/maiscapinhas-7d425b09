@@ -290,11 +290,11 @@ const HistoricoEnvelopesPage: React.FC = () => {
   const report = reportData?.data;
   const shifts = shiftsData?.data || [];
 
-  // Handle pagination - API returns nested pagination
-  const pagination = shiftsData?.meta?.pagination || shiftsData?.meta;
-  const totalPages = pagination?.last_page || 1;
-  const currentPage = pagination?.current_page || 1;
-  const total = pagination?.total || 0;
+  // Handle pagination - API returns meta directly
+  const paginationMeta = shiftsData?.meta;
+  const totalPages = paginationMeta?.last_page || 1;
+  const currentPage = paginationMeta?.current_page || 1;
+  const total = paginationMeta?.total || 0;
 
   return (
     <div className="space-y-6 animate-fade-in">

@@ -97,7 +97,10 @@ const Login: React.FC = () => {
 
     const onSubmit = async (data: LoginFormData) => {
         try {
-            await loginMutation.mutateAsync(data);
+            await loginMutation.mutateAsync({
+                email: data.email,
+                password: data.password,
+            });
             navigate(from, { replace: true });
         } catch {
             // Error is handled by the mutation hook

@@ -1,18 +1,20 @@
 import React from 'react';
 import { vendasDiarias, lojas } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Calendar, TrendingUp, TrendingDown } from 'lucide-react';
 
 const ExtratoVendas: React.FC = () => {
   const { user } = useAuth();
+  const { currentStore } = usePermissions();
   
   const minhasVendas = vendasDiarias
-    .filter((v) => v.vendedorId === user?.id)
+    .filter((v) => String(v.vendedorId) === String(user?.id))
     .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
-  const loja = lojas.find((l) => l.id === user?.lojaId);
+  const loja = lojas.find((l) => String(l.id) === String(currentStore?.id));
 
   return (
     <div className="space-y-6">
@@ -22,7 +24,7 @@ const ExtratoVendas: React.FC = () => {
           Extrato de Vendas
         </h1>
         <p className="text-muted-foreground">
-          Histórico dos seus dias trabalhados em {loja?.nome}
+          Histórico dos seus dias trabalhados em {loja?.nome || currentStore?.name || 'sua loja'}
         </p>
       </div>
 

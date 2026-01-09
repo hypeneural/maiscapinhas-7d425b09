@@ -14,29 +14,15 @@ import type {
 } from '@/types/api';
 
 /**
- * Dashboard filters for vendedor/conferente
- */
-interface DashboardFilters {
-    store_id: number;
-    date?: string; // YYYY-MM-DD format
-}
-
-/**
- * Admin dashboard filters
- */
-interface AdminDashboardFilters {
-    month?: string; // YYYY-MM format
-}
-
-/**
  * Get seller's personal dashboard
  * Requires store_id as the backend needs context
  */
 export async function getSellerDashboard(
-    storeId: number,
+    storeId?: number,
     date?: string
 ): Promise<SellerDashboard> {
-    const params: Record<string, unknown> = { store_id: storeId };
+    const params: Record<string, unknown> = {};
+    if (storeId) params.store_id = storeId;
     if (date) params.date = date;
 
     const response = await apiGet<ApiResponse<SellerDashboard>>('/dashboard/vendedor', params);
@@ -48,10 +34,11 @@ export async function getSellerDashboard(
  * Requires store_id as the backend needs context
  */
 export async function getConferenteDashboard(
-    storeId: number,
+    storeId?: number,
     date?: string
 ): Promise<ConferenteDashboard> {
-    const params: Record<string, unknown> = { store_id: storeId };
+    const params: Record<string, unknown> = {};
+    if (storeId) params.store_id = storeId;
     if (date) params.date = date;
 
     const response = await apiGet<ApiResponse<ConferenteDashboard>>('/dashboard/conferente', params);
