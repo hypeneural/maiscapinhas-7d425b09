@@ -78,17 +78,21 @@ export interface UserStore {
 
 /**
  * User entity (core user data)
+ * Matches the /me endpoint response
  */
 export interface User {
     id: number;
     name: string;
     email: string;
-    phone?: string;
-    avatar_url?: string;
-    birth_date?: string;
-    hire_date?: string;  // Data de admissão
     active: boolean;
-    created_at?: string;
+    whatsapp?: string | null;
+    avatar_url?: string | null;
+    instagram?: string | null;
+    birth_date?: string | null;   // YYYY-MM-DD
+    hire_date?: string | null;    // YYYY-MM-DD (data de admissão)
+    created_at?: string;          // ISO 8601
+    // Legacy field (some older code uses phone)
+    phone?: string;
 }
 
 /**
@@ -517,10 +521,11 @@ export interface RankingEntry {
     seller: {
         id: number;
         name: string;
-        avatar_url?: string;
+        avatar_url: string | null;
         store_name: string;
     };
     total_sold: number;
+    sale_count: number;           // Quantidade de vendas
     goal: number;
     achievement_rate: number;
     bonus_accumulated: number;
@@ -531,11 +536,13 @@ export interface RankingEntry {
  */
 export interface RankingResponse {
     period: string;
-    podium: RankingEntry[];
-    ranking: RankingEntry[];
+    store_id: number | null;      // null = todas as lojas
+    podium: RankingEntry[];       // Top 3
+    ranking: RankingEntry[];      // Posição 4+
     stats: {
         total_sellers: number;
         above_goal: number;
+        below_goal: number;
         average_achievement: number;
     };
 }
@@ -547,6 +554,103 @@ export interface RankingFilters {
     month?: string;
     store_id?: number;
     limit?: number;
+}
+
+// ============================================================
+// Store Performance & Consolidated Reports
+// ============================================================
+
+/**
+ * Store performance data from /reports/store-performance
+ */
+export interface StorePerformance {
+    store_id: number;
+    period: string;              // "YYYY-MM"
+    days_elapsed: number;        // Dias corridos
+    days_total: number;          // Total de dias no mês
+
+    sales: {
+        current_amount: number;    // Vendas até agora
+        goal_amount: number;       // Meta mensal
+        achievement_rate: number;  // % atingimento
+        remaining_to_goal: number; // Falta para meta
+    };
+
+    comparison: {
+        same_period_last_year: number;  // Mesmo período ano passado
+        total_last_year_month: number;  // Total mês ano passado
+        yoy_growth: number;             // % crescimento YoY
+    };
+
+    forecast: {
+        linear_projection: number;   // Run rate
+        trend_projection: number;    // Baseado em YoY
+        status: 'ON_TRACK' | 'AT_RISK' | 'BEHIND';
+    };
+}
+
+/**
+ * Consolidated totals for all stores
+ */
+export interface ConsolidatedTotals {
+    total_sales: number;
+    total_goal: number;
+    total_achievement_rate: number;
+    total_linear_projection: number;
+}
+
+/**
+ * Consolidated performance response from /reports/consolidated
+ */
+export interface ConsolidatedPerformanceResponse {
+    period: string;
+    stores: StorePerformance[];
+    consolidated: ConsolidatedTotals;
+}
+
+// ============================================================
+// Cash Integrity Reports
+// ============================================================
+
+/**
+ * Cash integrity alert
+ */
+export interface CashAlert {
+    type: 'CRITICAL' | 'WARNING' | 'INFO';
+    code: string;
+    message: string;
+}
+
+/**
+ * Cash integrity report data from /reports/cash-integrity
+ */
+export interface CashIntegrityData {
+    store_id: number;
+    period: string;
+
+    cash_integrity: {
+        total_system_value: number;     // Esperado pelo sistema
+        total_real_value: number;       // Valor real contado
+        total_divergence: number;       // Diferença (negativo = falta)
+        cash_break_percentage: number;  // % quebra
+        status: 'GREEN' | 'YELLOW' | 'RED';
+    };
+
+    divergence_analysis: {
+        total_lines_with_divergence: number;
+        justified_count: number;
+        unjustified_count: number;
+        justified_rate: number;  // % justificadas
+    };
+
+    workflow_status: {
+        total_shifts: number;       // Turnos no período
+        closed_count: number;       // Aprovados
+        pending_approval: number;   // Aguardando aprovação
+        completion_rate: number;    // % concluídos
+    };
+
+    alerts: CashAlert[];
 }
 
 /**

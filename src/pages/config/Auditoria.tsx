@@ -28,26 +28,39 @@ import type { AuditLogEntry, AuditLogFilters } from '@/types/admin.types';
 
 const LOG_NAME_ICONS: Record<string, React.ReactNode> = {
     auth: <Shield className="h-4 w-4" />,
-    user: <Users className="h-4 w-4" />,
-    store: <Store className="h-4 w-4" />,
     cash: <FileText className="h-4 w-4" />,
     rules: <Settings className="h-4 w-4" />,
+    goals: <Activity className="h-4 w-4" />,
+    sales: <Store className="h-4 w-4" />,
+    admin: <Users className="h-4 w-4" />,
+    analytics: <Activity className="h-4 w-4" />,
     default: <Activity className="h-4 w-4" />,
 };
 
 const LOG_NAME_COLORS: Record<string, string> = {
     auth: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-    user: 'bg-green-500/10 text-green-600 border-green-500/20',
-    store: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
     cash: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-    rules: 'bg-red-500/10 text-red-600 border-red-500/20',
+    rules: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+    goals: 'bg-green-500/10 text-green-600 border-green-500/20',
+    sales: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+    admin: 'bg-red-500/10 text-red-600 border-red-500/20',
+    analytics: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
     default: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
 };
 
 const ACTION_COLORS: Record<string, string> = {
+    login: 'bg-green-500',
+    logout: 'bg-slate-500',
+    login_failed: 'bg-red-500',
+    create: 'bg-green-500',
     created: 'bg-green-500',
+    update: 'bg-blue-500',
     updated: 'bg-blue-500',
+    delete: 'bg-red-500',
     deleted: 'bg-red-500',
+    submit: 'bg-purple-500',
+    approve: 'bg-green-500',
+    reject: 'bg-red-500',
     default: 'bg-slate-500',
 };
 
@@ -316,7 +329,7 @@ const AuditoriaPage: React.FC = () => {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                         <div>
                             <Label className="text-xs">Data Início</Label>
                             <Input
@@ -332,6 +345,26 @@ const AuditoriaPage: React.FC = () => {
                                 value={filters.to || ''}
                                 onChange={(e) => handleFilterChange('to', e.target.value)}
                             />
+                        </div>
+                        <div>
+                            <Label className="text-xs">Domínio</Label>
+                            <Select
+                                value={filters.log_name || 'all'}
+                                onValueChange={(v) => handleFilterChange('log_name', v === 'all' ? undefined : v)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Todos" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos os domínios</SelectItem>
+                                    <SelectItem value="auth">🔐 Autenticação</SelectItem>
+                                    <SelectItem value="cash">💰 Conferência</SelectItem>
+                                    <SelectItem value="rules">📋 Regras</SelectItem>
+                                    <SelectItem value="goals">🎯 Metas</SelectItem>
+                                    <SelectItem value="sales">🛒 Vendas</SelectItem>
+                                    <SelectItem value="admin">⚙️ Administração</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div>
                             <Label className="text-xs">Usuário</Label>
@@ -372,15 +405,15 @@ const AuditoriaPage: React.FC = () => {
                             </Select>
                         </div>
                         <div>
-                            <Label className="text-xs">Evento</Label>
+                            <Label className="text-xs">Evento (wildcard: *)</Label>
                             <Input
                                 value={filters.event || ''}
                                 onChange={(e) => handleFilterChange('event', e.target.value)}
-                                placeholder="auth.login, user.*"
+                                placeholder="cash_closing.*"
                             />
                         </div>
                     </div>
-                    <div className="flex gap-2 mt-4">
+                    <div className="flex flex-wrap gap-2 mt-4">
                         <Button
                             variant="outline"
                             size="sm"
@@ -404,6 +437,23 @@ const AuditoriaPage: React.FC = () => {
                         >
                             Últimos 30 dias
                         </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setFilters(f => ({
+                                    ...f,
+                                    from: today,
+                                    to: today,
+                                }));
+                            }}
+                        >
+                            Hoje
+                        </Button>
+                        <div className="flex-1" />
+                        <span className="text-xs text-muted-foreground self-center">
+                            {logsData?.meta?.total ? `${logsData.meta.total.toLocaleString('pt-BR')} logs encontrados` : ''}
+                        </span>
                     </div>
                 </CardContent>
             </Card>

@@ -98,6 +98,11 @@ export async function apiDelete<T>(url: string): Promise<T> {
 
 /**
  * Helper to upload files via multipart/form-data
+ * 
+ * IMPORTANT: For uploads with PUT method, we use POST with _method=PUT
+ * (Laravel method spoofing) to avoid issues with PUT + multipart/form-data.
+ * Also, we do NOT set Content-Type manually - the browser sets it automatically
+ * with the correct boundary for multipart/form-data.
  */
 export async function apiUpload<T>(
     url: string,
@@ -108,13 +113,19 @@ export async function apiUpload<T>(
     const formData = new FormData();
     formData.append(fieldName, file);
 
+    // Use Laravel method spoofing for PUT requests
+    // Some servers have issues with PUT + multipart/form-data
+    const actualMethod = method === 'PUT' ? 'POST' : method;
+    if (method === 'PUT') {
+        formData.append('_method', 'PUT');
+    }
+
     const response = await api.request<T>({
-        method,
+        method: actualMethod,
         url,
         data: formData,
-        headers: {
-            'Content-Type': 'multipart/form-data',
-        },
+        // ⚠️ Do NOT set Content-Type manually!
+        // The browser will set it automatically with the correct boundary
     });
 
     return response.data;

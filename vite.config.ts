@@ -76,12 +76,6 @@ export default defineConfig(({ mode }) => ({
             type: 'image/png',
             purpose: 'maskable',
           },
-          {
-            src: '/apple-touch-icon.png',
-            sizes: '180x180',
-            type: 'image/png',
-            purpose: 'apple touch icon',
-          },
         ],
         shortcuts: [
           {
@@ -200,15 +194,45 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    // Target modern browsers
+    target: 'es2020',
+    // Minification
+    minify: mode === 'production' ? 'esbuild' : false,
+    // Source maps for debugging (external in prod)
+    sourcemap: mode === 'production' ? 'hidden' : true,
     // Optimize chunk splitting for better caching
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tooltip'],
+          // React core
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-router': ['react-router-dom'],
+          // UI components by category
+          'vendor-ui-dialog': ['@radix-ui/react-dialog', '@radix-ui/react-alert-dialog'],
+          'vendor-ui-menu': ['@radix-ui/react-dropdown-menu', '@radix-ui/react-menubar', '@radix-ui/react-select'],
+          'vendor-ui-form': ['@radix-ui/react-checkbox', '@radix-ui/react-radio-group', '@radix-ui/react-switch', '@radix-ui/react-label'],
+          'vendor-ui-overlay': ['@radix-ui/react-tooltip', '@radix-ui/react-popover', '@radix-ui/react-hover-card'],
+          'vendor-ui-misc': ['@radix-ui/react-tabs', '@radix-ui/react-accordion', '@radix-ui/react-separator'],
+          // Data fetching
           'vendor-query': ['@tanstack/react-query'],
+          // Charts (lazy loaded)
+          'vendor-charts': ['recharts'],
+          // Forms
+          'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          // Utilities
+          'vendor-utils': ['class-variance-authority', 'clsx', 'tailwind-merge'],
         },
       },
     },
+    // Chunk size warnings
+    chunkSizeWarningLimit: 500,
+  },
+  // Optimize dependencies
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
+  },
+  // Enable CSS code splitting
+  css: {
+    devSourcemap: true,
   },
 }));

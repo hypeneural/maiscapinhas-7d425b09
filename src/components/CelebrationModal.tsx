@@ -9,7 +9,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { Cake, PartyPopper, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { cn } from '@/lib/utils';
 
 // ============================================================
@@ -55,7 +56,8 @@ export function isBirthday(birthDate: string | null | undefined): boolean {
 
     try {
         const today = new Date();
-        const birth = new Date(birthDate);
+        // Add T00:00:00 to avoid timezone issues with YYYY-MM-DD format
+        const birth = new Date(birthDate + 'T00:00:00');
 
         return today.getMonth() === birth.getMonth()
             && today.getDate() === birth.getDate();
@@ -69,7 +71,8 @@ export function isWorkAnniversary(hireDate: string | null | undefined): { isAnni
 
     try {
         const today = new Date();
-        const hire = new Date(hireDate);
+        // Add T00:00:00 to avoid timezone issues with YYYY-MM-DD format
+        const hire = new Date(hireDate + 'T00:00:00');
         const years = today.getFullYear() - hire.getFullYear();
 
         // Must be at least 1 year and same month/day
@@ -204,6 +207,19 @@ function CelebrationModal({ type, userName, yearsAtCompany = 1, onClose }: Celeb
                         : 'border-primary/50 bg-gradient-to-b from-primary/10 to-background'
                 )}
             >
+                {/* Accessibility: Hidden title and description for screen readers */}
+                <VisuallyHidden>
+                    <DialogTitle>
+                        {isBirthdayType ? 'Feliz Aniversário!' : 'Parabéns pelo Tempo de Empresa!'}
+                    </DialogTitle>
+                    <DialogDescription>
+                        {isBirthdayType
+                            ? `Desejamos um feliz aniversário para ${firstName}!`
+                            : `${firstName} completou ${yearsAtCompany} anos na empresa!`
+                        }
+                    </DialogDescription>
+                </VisuallyHidden>
+
                 {/* Decorative background */}
                 <div className="absolute inset-0 pointer-events-none overflow-hidden">
                     <div className={cn(

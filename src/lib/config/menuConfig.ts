@@ -201,7 +201,7 @@ export const menuSections: MenuSection[] = [
                 id: 'audit-logs',
                 label: 'Logs de Auditoria',
                 icon: ScrollText,
-                path: '/admin/audit-logs',
+                path: '/config/auditoria',
                 permissions: ['audit:view'],
             },
         ],

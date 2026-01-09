@@ -1,7 +1,7 @@
 /**
  * Reports Service
  * 
- * Manages ranking and performance reports.
+ * Manages ranking, store performance, and cash integrity reports.
  */
 
 import { apiGet } from '@/lib/api';
@@ -9,8 +9,15 @@ import type {
     ApiResponse,
     RankingResponse,
     RankingFilters,
-    BirthdayEntry
+    BirthdayEntry,
+    StorePerformance,
+    ConsolidatedPerformanceResponse,
+    CashIntegrityData
 } from '@/types/api';
+
+// ============================================================
+// Ranking
+// ============================================================
 
 /**
  * Get seller ranking
@@ -20,77 +27,57 @@ export async function getRanking(filters: RankingFilters = {}): Promise<RankingR
     return response.data;
 }
 
-/**
- * Store performance report data
- */
-export interface StorePerformanceData {
-    store: {
-        id: number;
-        name: string;
-    };
-    period: string;
-    total_sold: number;
-    goal: number;
-    achievement_rate: number;
-    sellers_count: number;
-    sellers_above_goal: number;
-    top_seller: {
-        id: number;
-        name: string;
-        total_sold: number;
-    };
-    sales_by_payment_method: Record<string, number>;
-    daily_trend: Array<{
-        date: string;
-        amount: number;
-    }>;
-}
+// ============================================================
+// Store Performance
+// ============================================================
 
 /**
- * Get store performance report
+ * Get consolidated performance for all stores
+ * Used by /gestao/lojas page
  */
-export async function getStorePerformance(
-    storeId?: number,
+export async function getConsolidatedPerformance(
     month?: string
-): Promise<StorePerformanceData> {
+): Promise<ConsolidatedPerformanceResponse> {
     const params: Record<string, unknown> = {};
-    if (storeId) params.store_id = storeId;
     if (month) params.month = month;
 
-    const response = await apiGet<ApiResponse<StorePerformanceData>>(
-        '/reports/store-performance',
+    const response = await apiGet<ApiResponse<ConsolidatedPerformanceResponse>>(
+        '/reports/consolidated',
         params
     );
     return response.data;
 }
 
 /**
- * Cash integrity report data
+ * Get performance for a single store
  */
-export interface CashIntegrityData {
-    period: string;
-    total_shifts: number;
-    approved_shifts: number;
-    rejected_shifts: number;
-    pending_shifts: number;
-    total_divergence: number;
-    divergence_rate: number;
-    top_divergences: Array<{
-        seller: { id: number; name: string };
-        total_divergence: number;
-        count: number;
-    }>;
+export async function getStorePerformance(
+    storeId: number,
+    month?: string
+): Promise<StorePerformance> {
+    const params: Record<string, unknown> = { store_id: storeId };
+    if (month) params.month = month;
+
+    const response = await apiGet<ApiResponse<StorePerformance>>(
+        '/reports/store-performance',
+        params
+    );
+    return response.data;
 }
 
+// ============================================================
+// Cash Integrity
+// ============================================================
+
 /**
- * Get cash integrity report
+ * Get cash integrity report for a store
+ * Used by /gestao/quebra page
  */
 export async function getCashIntegrity(
-    storeId?: number,
+    storeId: number,
     month?: string
 ): Promise<CashIntegrityData> {
-    const params: Record<string, unknown> = {};
-    if (storeId) params.store_id = storeId;
+    const params: Record<string, unknown> = { store_id: storeId };
     if (month) params.month = month;
 
     const response = await apiGet<ApiResponse<CashIntegrityData>>(
@@ -99,6 +86,10 @@ export async function getCashIntegrity(
     );
     return response.data;
 }
+
+// ============================================================
+// Birthdays
+// ============================================================
 
 /**
  * Get birthdays for current/specified month
