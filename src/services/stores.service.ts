@@ -7,9 +7,37 @@
 import { apiGet, apiUpload } from '@/lib/api';
 import type {
     ApiResponse,
+    PaginatedResponse,
     Store,
     StoreSeller
 } from '@/types/api';
+
+/**
+ * Public store data (minimal, accessible by any authenticated user)
+ */
+export interface PublicStore {
+    id: number;
+    name: string;
+    city: string;
+}
+
+/**
+ * Filters for public stores list
+ */
+export interface PublicStoreFilters {
+    city?: string;
+    search?: string;
+    per_page?: number;
+}
+
+/**
+ * Get all active stores (public list)
+ * Any authenticated user can access this endpoint.
+ * Returns only id, name, city - minimal data for selects/dropdowns.
+ */
+export async function getAllPublicStores(filters?: PublicStoreFilters): Promise<PaginatedResponse<PublicStore>> {
+    return apiGet<PaginatedResponse<PublicStore>>('/stores/all', filters);
+}
 
 /**
  * Get all stores accessible by current user

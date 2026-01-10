@@ -16,6 +16,7 @@ interface AuthContextType {
   user: UserWithStores | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isSuperAdmin: boolean;  // Super Administrator flag - has access to everything
   logout: () => void;
   hasRole: (role: UserRole) => boolean;
   hasAccessToStore: (storeId: number) => boolean;
@@ -97,6 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user: user ?? null,
     isLoading,
     isAuthenticated: !!user && !isError,
+    isSuperAdmin: user?.is_super_admin === true,
     logout: handleLogout,
     hasRole: checkHasRole,
     hasAccessToStore: checkHasAccessToStore,

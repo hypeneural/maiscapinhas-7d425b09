@@ -196,17 +196,25 @@ export function useChangePassword() {
 
 /**
  * Check if user has a specific role in any store
+ * Super admins implicitly have all roles
  */
 export function hasRole(user: UserWithStores | null | undefined, role: string): boolean {
-    if (!user || !user.stores) return false;
+    if (!user) return false;
+    // Super admin has all roles
+    if (user.is_super_admin) return true;
+    if (!user.stores) return false;
     return user.stores.some((s) => s.role === role);
 }
 
 /**
  * Check if user has access to a specific store
+ * Super admins have access to all stores
  */
 export function hasAccessToStore(user: UserWithStores | null | undefined, storeId: number): boolean {
-    if (!user || !user.stores) return false;
+    if (!user) return false;
+    // Super admin has access to all stores
+    if (user.is_super_admin) return true;
+    if (!user.stores) return false;
     return user.stores.some((s) => s.id === storeId);
 }
 

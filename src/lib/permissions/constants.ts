@@ -45,3 +45,10 @@ export const DEFAULT_ROUTES: Record<Role, string> = {
     conferente: '/conferencia/lancar',
     vendedor: '/',
 };
+
+/**
+ * Super Admin display constants
+ */
+export const SUPER_ADMIN_LABEL = 'Super Admin';
+export const SUPER_ADMIN_COLOR = 'bg-gradient-to-r from-amber-500 to-orange-500 text-white';
+export const SUPER_ADMIN_BADGE_VARIANT = 'default' as const;

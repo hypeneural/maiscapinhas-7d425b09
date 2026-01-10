@@ -21,6 +21,11 @@ interface UsePermissionsReturn {
     currentRole: Role | null;
     isLoading: boolean;
 
+    // Super Admin
+    isSuperAdmin: boolean;           // User is a Super Administrator
+    canManageSuperAdmins: boolean;   // Can promote/demote super admins
+    canAccessAllStores: boolean;     // Has implicit access to all stores
+
     // Permission checks
     hasPermission: (permission: Permission) => boolean;
     hasAnyPermission: (permissions: Permission[]) => boolean;
@@ -43,7 +48,11 @@ interface UsePermissionsReturn {
 }
 
 export function usePermissions(): UsePermissionsReturn {
-    const { user, isLoading, currentStoreId, setCurrentStoreId } = useAuth();
+    const { user, isLoading, currentStoreId, setCurrentStoreId, isSuperAdmin } = useAuth();
+
+    // Super admin checks
+    const canManageSuperAdmins = isSuperAdmin;
+    const canAccessAllStores = isSuperAdmin;
 
     // Transform stores to StoreWithRole type
     const stores = useMemo((): StoreWithRole[] => {
@@ -71,65 +80,72 @@ export function usePermissions(): UsePermissionsReturn {
         return currentStore?.role ?? null;
     }, [currentStore]);
 
-    // Check single permission
+    // Check single permission - Super admin has all permissions
     const hasPermission = useCallback(
         (permission: Permission): boolean => {
+            if (isSuperAdmin) return true;
             if (!currentRole) return false;
             return ROLE_PERMISSIONS[currentRole].includes(permission);
         },
-        [currentRole]
+        [currentRole, isSuperAdmin]
     );
 
     // Check any permission
     const hasAnyPermission = useCallback(
         (permissions: Permission[]): boolean => {
+            if (isSuperAdmin) return true;
             return permissions.some((p) => hasPermission(p));
         },
-        [hasPermission]
+        [hasPermission, isSuperAdmin]
     );
 
     // Check all permissions
     const hasAllPermissions = useCallback(
         (permissions: Permission[]): boolean => {
+            if (isSuperAdmin) return true;
             return permissions.every((p) => hasPermission(p));
         },
-        [hasPermission]
+        [hasPermission, isSuperAdmin]
     );
 
-    // Check exact role
+    // Check exact role - Super admin counts as having all roles
     const hasRole = useCallback(
         (role: Role): boolean => {
+            if (isSuperAdmin) return true;
             return currentRole === role;
         },
-        [currentRole]
+        [currentRole, isSuperAdmin]
     );
 
-    // Check minimum role (hierarchy)
+    // Check minimum role (hierarchy) - Super admin is above all
     const hasMinRole = useCallback(
         (minRole: Role): boolean => {
+            if (isSuperAdmin) return true;
             if (!currentRole) return false;
             return ROLE_HIERARCHY[currentRole] >= ROLE_HIERARCHY[minRole];
         },
-        [currentRole]
+        [currentRole, isSuperAdmin]
     );
 
     // Check any of the roles
     const hasAnyRole = useCallback(
         (roles: Role[]): boolean => {
+            if (isSuperAdmin) return true;
             if (!currentRole) return false;
             return roles.includes(currentRole);
         },
-        [currentRole]
+        [currentRole, isSuperAdmin]
     );
 
-    // Shortcuts
-    const isAdmin = currentRole === 'admin';
-    const isGerente = currentRole === 'gerente';
-    const isConferente = currentRole === 'conferente';
-    const isVendedor = currentRole === 'vendedor';
+    // Shortcuts - Super admin counts for all
+    const isAdmin = isSuperAdmin || currentRole === 'admin';
+    const isGerente = isSuperAdmin || currentRole === 'gerente';
+    const isConferente = isSuperAdmin || currentRole === 'conferente';
+    const isVendedor = isSuperAdmin || currentRole === 'vendedor';
 
     // Get highest role across all stores
     const getHighestRole = useCallback((): Role | null => {
+        if (isSuperAdmin) return 'admin'; // Super admin is treated as highest
         if (!stores.length) return null;
         return stores.reduce((highest, store) => {
             if (!highest) return store.role;
@@ -137,7 +153,7 @@ export function usePermissions(): UsePermissionsReturn {
                 ? store.role
                 : highest;
         }, null as Role | null);
-    }, [stores]);
+    }, [stores, isSuperAdmin]);
 
     // Set current store
     const setCurrentStore = useCallback(
@@ -152,6 +168,11 @@ export function usePermissions(): UsePermissionsReturn {
         currentStore,
         currentRole,
         isLoading,
+        // Super Admin
+        isSuperAdmin,
+        canManageSuperAdmins,
+        canAccessAllStores,
+        // Permissions
         hasPermission,
         hasAnyPermission,
         hasAllPermissions,

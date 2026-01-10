@@ -9,9 +9,9 @@
 // ============================================================
 
 export const SHIFT_CODES = {
-  M: 'Manhã',
-  T: 'Tarde',
-  N: 'Noite',
+  '1': '1° Turno',
+  '2': '2° Turno',
+  '3': '3° Turno',
 } as const;
 
 export type ShiftCode = keyof typeof SHIFT_CODES;
@@ -68,6 +68,11 @@ export interface CashClosing {
   closed_by: number | null;
   closed_at: string | null;
   version: number;
+
+  // Justificativa por turno (não por linha)
+  justification_text: string | null;
+  justified: boolean;
+
   lines: CashClosingLine[];
   cash_shift?: CashShift;
   closed_by_user?: { id: number; name: string } | null;
@@ -82,7 +87,6 @@ export interface CashClosingLine {
   system_value: number;
   real_value: number;
   diff_value: number;
-  justification_text: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -147,11 +151,12 @@ export interface CreateClosingLineRequest {
   label: string;
   system_value: number;
   real_value: number;
-  justification_text?: string;
 }
 
 export interface CreateClosingRequest {
   lines: CreateClosingLineRequest[];
+  justification_text?: string | null;
+  justified?: boolean;
 }
 
 export interface UpdateClosingRequest {
@@ -160,8 +165,9 @@ export interface UpdateClosingRequest {
     label: string;
     system_value: number;
     real_value: number;
-    justification_text?: string;
   }>;
+  justification_text?: string | null;
+  justified?: boolean;
 }
 
 export interface RejectClosingRequest {
@@ -245,13 +251,12 @@ export interface ClosingLineFormData {
   label: PaymentLabel | string;
   system_value: number;
   real_value: number;
-  justification_text: string;
 }
 
 /** Default payment lines for new closing */
 export const DEFAULT_CLOSING_LINES: ClosingLineFormData[] = [
-  { label: PAYMENT_LABELS.CASH, system_value: 0, real_value: 0, justification_text: '' },
-  { label: PAYMENT_LABELS.CREDIT_CARD, system_value: 0, real_value: 0, justification_text: '' },
-  { label: PAYMENT_LABELS.DEBIT_CARD, system_value: 0, real_value: 0, justification_text: '' },
-  { label: PAYMENT_LABELS.PIX, system_value: 0, real_value: 0, justification_text: '' },
+  { label: PAYMENT_LABELS.CASH, system_value: 0, real_value: 0 },
+  { label: PAYMENT_LABELS.CREDIT_CARD, system_value: 0, real_value: 0 },
+  { label: PAYMENT_LABELS.DEBIT_CARD, system_value: 0, real_value: 0 },
+  { label: PAYMENT_LABELS.PIX, system_value: 0, real_value: 0 },
 ];

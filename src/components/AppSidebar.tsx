@@ -10,13 +10,14 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFilteredMenu } from '@/hooks/useFilteredMenu';
 import { usePermissions } from '@/hooks/usePermissions';
-import { ROLE_LABELS } from '@/lib/permissions';
+import { ROLE_LABELS, SUPER_ADMIN_LABEL, SUPER_ADMIN_COLOR } from '@/lib/permissions';
 import {
   ChevronLeft,
   ChevronRight,
   LogOut,
   Store,
   Loader2,
+  Crown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -83,7 +84,7 @@ const NavItemComponent: React.FC<{
 export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onToggle }) => {
   const { user, logout } = useAuth();
   const { menu, isLoading } = useFilteredMenu();
-  const { currentStore, currentRole } = usePermissions();
+  const { currentStore, currentRole, isSuperAdmin } = usePermissions();
   const [expandedSections, setExpandedSections] = React.useState<string[]>([]);
 
   const toggleSection = (sectionId: string) => {
@@ -136,12 +137,21 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onToggle }) =
       </div>
 
       {/* Current Store Info */}
-      {!collapsed && currentStore && (
+      {!collapsed && (
         <div className="px-4 py-2 border-b border-sidebar-border">
           <p className="text-xs text-sidebar-foreground/60">Loja atual</p>
-          <p className="text-sm font-medium text-sidebar-foreground truncate">
-            {currentStore.name}
-          </p>
+          {isSuperAdmin && !currentStore ? (
+            <div className="flex items-center gap-1.5">
+              <Crown className="h-3.5 w-3.5 text-amber-500" />
+              <p className="text-sm font-medium text-amber-500">
+                TODAS AS LOJAS
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm font-medium text-sidebar-foreground truncate">
+              {currentStore?.name || 'Nenhuma loja'}
+            </p>
+          )}
         </div>
       )}
 
@@ -216,13 +226,21 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onToggle }) =
         {!collapsed && user && (
           <div className="flex items-center gap-3 px-2 py-2 mb-2">
             <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center text-sm font-medium">
-              {user.name?.charAt(0) || 'U'}
+              {isSuperAdmin ? (
+                <Crown className="h-4 w-4 text-amber-500" />
+              ) : (
+                user.name?.charAt(0) || 'U'
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
                 {user.name || 'Usuário'}
               </p>
-              {currentRole && (
+              {isSuperAdmin ? (
+                <Badge className={SUPER_ADMIN_COLOR + ' text-[10px] h-4 px-1.5 border-0'}>
+                  {SUPER_ADMIN_LABEL}
+                </Badge>
+              ) : currentRole && (
                 <Badge variant="outline" className="text-[10px] h-4 px-1">
                   {ROLE_LABELS[currentRole]}
                 </Badge>

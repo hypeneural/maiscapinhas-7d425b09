@@ -6,7 +6,7 @@
  */
 
 import React, { useState } from 'react';
-import { Users, Store, Plus, Pencil, Trash2, UserPlus, Shield, Globe } from 'lucide-react';
+import { Users, Store, Plus, Pencil, Trash2, UserPlus, Shield, Globe, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,6 +38,7 @@ import {
   useUploadStorePhoto,
 } from '@/hooks/api/use-admin-stores';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
 import type { AdminUserResponse, AdminStoreResponse, CreateUserRequest, CreateStoreRequest, StoreUserBinding } from '@/types/admin.types';
 import type { UserRole } from '@/types/api';
@@ -60,12 +61,15 @@ const ROLE_COLORS: Record<UserRole, string> = {
   vendedor: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
 };
 
+const SUPER_ADMIN_COLOR = 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-amber-500/30';
+
 // ============================================================
 // Users Tab Component
 // ============================================================
 
 function UsersTab() {
   const { user: currentUser } = useAuth();
+  const { isSuperAdmin, canManageSuperAdmins } = usePermissions();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -78,6 +82,7 @@ function UsersTab() {
     email: '',
     password: '',
     active: true,
+    is_super_admin: false,
   });
 
   // Queries and mutations
@@ -100,13 +105,25 @@ function UsersTab() {
             <AvatarImage src={user.stores?.[0]?.store_name} />
             <AvatarFallback className={cn(
               'text-sm font-medium',
-              user.active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+              user.is_super_admin ? 'bg-amber-500/10 text-amber-600' :
+                user.active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
             )}>
-              {user.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+              {user.is_super_admin ? (
+                <Crown className="h-4 w-4" />
+              ) : (
+                user.name.split(' ').map(n => n[0]).slice(0, 2).join('')
+              )}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-medium">{user.name}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-medium">{user.name}</p>
+              {user.is_super_admin && (
+                <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border-0', SUPER_ADMIN_COLOR)}>
+                  Super Admin
+                </Badge>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
         </div>
@@ -117,7 +134,9 @@ function UsersTab() {
       label: 'Lojas / Roles',
       render: (_, user) => (
         <div className="flex flex-wrap gap-1">
-          {user.stores?.length > 0 ? (
+          {user.is_super_admin ? (
+            <span className="text-amber-600 text-xs font-medium">TODAS AS LOJAS</span>
+          ) : user.stores?.length > 0 ? (
             user.stores.slice(0, 3).map((s) => (
               <Badge
                 key={s.store_id}
@@ -130,7 +149,7 @@ function UsersTab() {
           ) : (
             <span className="text-muted-foreground text-xs">Sem lojas</span>
           )}
-          {user.stores?.length > 3 && (
+          {!user.is_super_admin && user.stores?.length > 3 && (
             <Badge variant="outline" className="text-xs">
               +{user.stores.length - 3}
             </Badge>
@@ -174,13 +193,14 @@ function UsersTab() {
       email: user.email,
       password: '',
       active: user.active,
+      is_super_admin: user.is_super_admin,
     });
     setIsDialogOpen(true);
   };
 
   const handleCreate = () => {
     setEditingUser(null);
-    setForm({ name: '', email: '', password: '', active: true });
+    setForm({ name: '', email: '', password: '', active: true, is_super_admin: false });
     setIsDialogOpen(true);
   };
 
@@ -193,6 +213,7 @@ function UsersTab() {
           email: form.email,
           password: form.password || undefined,
           active: form.active,
+          ...(canManageSuperAdmins && { is_super_admin: form.is_super_admin }),
         },
       });
     } else {
@@ -201,6 +222,7 @@ function UsersTab() {
         email: form.email,
         password: form.password,
         active: form.active,
+        ...(canManageSuperAdmins && { is_super_admin: form.is_super_admin }),
       });
     }
     setIsDialogOpen(false);
@@ -311,6 +333,25 @@ function UsersTab() {
               onCheckedChange={(checked) => setForm(f => ({ ...f, active: checked }))}
             />
           </div>
+
+          {/* Super Admin Toggle - Only visible to super admins */}
+          {canManageSuperAdmins && (
+            <div className="flex items-center justify-between p-3 rounded-lg border border-amber-500/30 bg-amber-500/5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Crown className="h-4 w-4 text-amber-500" />
+                  <Label className="text-base text-amber-600">Super Administrador</Label>
+                </div>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Acesso total a todas as lojas e funções
+                </p>
+              </div>
+              <Switch
+                checked={form.is_super_admin}
+                onCheckedChange={(checked) => setForm(f => ({ ...f, is_super_admin: checked }))}
+              />
+            </div>
+          )}
         </div>
       </FormDialog>
 

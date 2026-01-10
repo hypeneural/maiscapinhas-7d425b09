@@ -85,6 +85,7 @@ export interface User {
     name: string;
     email: string;
     active: boolean;
+    is_super_admin?: boolean;  // Super Administrator flag - has access to everything
     whatsapp?: string | null;
     avatar_url?: string | null;
     instagram?: string | null;

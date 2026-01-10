@@ -3,6 +3,8 @@
  * 
  * Modern interface for recording cash shift closings.
  * Features side-by-side comparison of system vs real values.
+ * 
+ * Updated: Justification is now per-shift (not per-line) and optional.
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -10,6 +12,7 @@ import {
   Calendar, Store, User, Clock, FileCheck, AlertTriangle, CheckCircle,
   DollarSign, CreditCard, Smartphone, Banknote, Send, Info, Loader2
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,8 +22,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PageHeader } from '@/components/PageHeader';
-import { useAdminStores, useStoreUsers } from '@/hooks/api/use-admin-stores';
+import { useStoreUsers } from '@/hooks/api/use-admin-stores';
+import { getAllPublicStores } from '@/services/stores.service';
 import { useCashShifts, useCreateCashShift } from '@/hooks/api/use-cash-shifts';
 import { useCashClosing, useCreateClosing, useUpdateClosing, useSubmitClosing } from '@/hooks/api/use-cash-closings';
 import { useAuth } from '@/contexts/AuthContext';
@@ -50,20 +55,19 @@ const PAYMENT_ICONS: Record<string, React.ReactNode> = {
 };
 
 // ============================================================
-// Line Input Component
+// Line Input Component (Simplified - no per-line justification)
 // ============================================================
 
 interface LineInputProps {
   line: ClosingLineFormData;
   index: number;
-  onChange: (index: number, field: keyof ClosingLineFormData, value: string | number) => void;
+  onChange: (index: number, field: keyof ClosingLineFormData, value: number) => void;
   disabled?: boolean;
 }
 
 function LineInput({ line, index, onChange, disabled }: LineInputProps) {
   const diff = line.real_value - line.system_value;
   const hasDiff = diff !== 0;
-  const needsJustification = hasDiff && !line.justification_text.trim();
 
   return (
     <div className={cn(
@@ -125,22 +129,6 @@ function LineInput({ line, index, onChange, disabled }: LineInputProps) {
           {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
         </div>
       </div>
-
-      {/* Justification (if needed) */}
-      {hasDiff && (
-        <div className="col-span-12 mt-2">
-          <Label className={cn('text-xs mb-1 block', needsJustification && 'text-destructive')}>
-            Justificativa {needsJustification && '*'}
-          </Label>
-          <Input
-            value={line.justification_text}
-            onChange={(e) => onChange(index, 'justification_text', e.target.value)}
-            placeholder="Explique a divergência..."
-            className={cn(needsJustification && 'border-destructive')}
-            disabled={disabled}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -155,15 +143,22 @@ const LancarTurnoPage: React.FC = () => {
   // Selection state
   const [storeId, setStoreId] = useState<string>('');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [shiftCode, setShiftCode] = useState<ShiftCode>('M');
+  const [shiftCode, setShiftCode] = useState<ShiftCode>('1');
   const [sellerId, setSellerId] = useState<string>('');
 
   // Form state
   const [lines, setLines] = useState<ClosingLineFormData[]>(DEFAULT_CLOSING_LINES);
   const [existingShiftId, setExistingShiftId] = useState<number | null>(null);
 
+  // Justification state (per-shift, not per-line)
+  const [justificationText, setJustificationText] = useState<string>('');
+  const [justified, setJustified] = useState<boolean>(false);
+
   // Queries
-  const { data: storesData } = useAdminStores({ per_page: 100 });
+  const { data: storesData } = useQuery({
+    queryKey: ['stores', 'public', { per_page: 100 }],
+    queryFn: () => getAllPublicStores({ per_page: 100 }),
+  });
   const { data: storeUsersData } = useStoreUsers(storeId ? parseInt(storeId) : 0);
 
   // Get existing shift
@@ -204,16 +199,26 @@ const LancarTurnoPage: React.FC = () => {
 
   // Load existing closing data into form
   useEffect(() => {
-    if (closingData?.data?.lines) {
-      const existingLines = closingData.data.lines.map(l => ({
-        label: l.label,
-        system_value: l.system_value,
-        real_value: l.real_value,
-        justification_text: l.justification_text || '',
-      }));
-      setLines(existingLines.length > 0 ? existingLines : DEFAULT_CLOSING_LINES);
+    if (closingData?.data) {
+      // Load lines
+      if (closingData.data.lines && closingData.data.lines.length > 0) {
+        const existingLines = closingData.data.lines.map(l => ({
+          label: l.label,
+          system_value: l.system_value,
+          real_value: l.real_value,
+        }));
+        setLines(existingLines);
+      } else {
+        setLines(DEFAULT_CLOSING_LINES);
+      }
+
+      // Load justification (now at closing level)
+      setJustificationText(closingData.data.justification_text || '');
+      setJustified(closingData.data.justified || false);
     } else {
       setLines(DEFAULT_CLOSING_LINES);
+      setJustificationText('');
+      setJustified(false);
     }
   }, [closingData]);
 
@@ -223,17 +228,13 @@ const LancarTurnoPage: React.FC = () => {
     const realTotal = lines.reduce((sum, l) => sum + (l.real_value || 0), 0);
     const diff = realTotal - systemTotal;
     const hasValues = realTotal > 0;
+    const hasDivergence = diff !== 0;
 
-    const unjustifiedDiffs = lines.filter(l => {
-      const lineDiff = l.real_value - l.system_value;
-      return lineDiff !== 0 && !l.justification_text.trim();
-    });
-
-    return { systemTotal, realTotal, diff, hasValues, unjustifiedDiffs };
+    return { systemTotal, realTotal, diff, hasValues, hasDivergence };
   }, [lines]);
 
   // Handle line change
-  const handleLineChange = (index: number, field: keyof ClosingLineFormData, value: string | number) => {
+  const handleLineChange = (index: number, field: keyof ClosingLineFormData, value: number) => {
     setLines(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
@@ -243,11 +244,6 @@ const LancarTurnoPage: React.FC = () => {
 
   // Handle submit
   const handleSubmit = async () => {
-    // Validate
-    if (totals.unjustifiedDiffs.length > 0) {
-      return; // Validation is shown in UI
-    }
-
     try {
       let shiftId = existingShiftId;
 
@@ -262,23 +258,27 @@ const LancarTurnoPage: React.FC = () => {
         shiftId = result.data.id;
       }
 
-      // Create or update closing
-      const closingLines = lines.map(l => ({
-        label: l.label,
-        system_value: l.system_value,
-        real_value: l.real_value,
-        justification_text: l.justification_text || undefined,
-      }));
+      // Prepare closing data with per-shift justification
+      const closingPayload = {
+        lines: lines.map(l => ({
+          label: l.label,
+          system_value: l.system_value,
+          real_value: l.real_value,
+        })),
+        justification_text: justificationText.trim() || null,
+        justified: justified,
+      };
 
+      // Create or update closing
       if (closingData?.data) {
         await updateClosingMutation.mutateAsync({
           shiftId: shiftId!,
-          data: { lines: closingLines },
+          data: closingPayload,
         });
       } else {
         await createClosingMutation.mutateAsync({
           shiftId: shiftId!,
-          data: { lines: closingLines },
+          data: closingPayload,
         });
       }
 
@@ -288,6 +288,8 @@ const LancarTurnoPage: React.FC = () => {
       // Reset form
       setLines(DEFAULT_CLOSING_LINES);
       setSellerId('');
+      setJustificationText('');
+      setJustified(false);
     } catch (error) {
       // Error handled by mutations
     }
@@ -431,7 +433,6 @@ const LancarTurnoPage: React.FC = () => {
               <AlertDescription>
                 Preencha os valores do <strong>Sistema</strong> (registrados nas vendas)
                 e os valores <strong>Reais</strong> (contados no envelope).
-                Divergências devem ser justificadas.
               </AlertDescription>
             </Alert>
 
@@ -479,35 +480,51 @@ const LancarTurnoPage: React.FC = () => {
               </Card>
             </div>
 
+            {/* Justification Section (per-shift, optional) */}
+            {totals.hasDivergence && (
+              <div className="p-4 rounded-lg border border-amber-500/30 bg-amber-500/5 space-y-4">
+                <div className="flex items-center gap-2 text-amber-600">
+                  <AlertTriangle className="h-5 w-5" />
+                  <span className="font-medium">Divergência Detectada</span>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="justification">Justificativa (opcional)</Label>
+                  <Textarea
+                    id="justification"
+                    value={justificationText}
+                    onChange={(e) => setJustificationText(e.target.value)}
+                    placeholder="Explique a divergência encontrada..."
+                    className="min-h-[80px]"
+                    disabled={!isEditable}
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="justified"
+                    checked={justified}
+                    onCheckedChange={(checked) => setJustified(checked === true)}
+                    disabled={!isEditable}
+                  />
+                  <Label
+                    htmlFor="justified"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Marcar como justificado (afeta cálculo de bônus)
+                  </Label>
+                </div>
+              </div>
+            )}
+
             {/* Status Indicator */}
-            {totals.hasValues && (
-              <div className={cn(
-                'p-4 rounded-lg border flex items-center gap-3',
-                totals.diff === 0
-                  ? 'bg-green-500/5 border-green-500/30'
-                  : 'bg-destructive/5 border-destructive/30'
-              )}>
-                {totals.diff === 0 ? (
-                  <>
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                    <div>
-                      <p className="font-medium text-green-600">Caixa Batendo!</p>
-                      <p className="text-sm text-muted-foreground">Os valores conferem. Pronto para enviar.</p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <AlertTriangle className="h-6 w-6 text-destructive" />
-                    <div>
-                      <p className="font-medium text-destructive">Divergência Detectada</p>
-                      <p className="text-sm text-muted-foreground">
-                        {totals.unjustifiedDiffs.length > 0
-                          ? `${totals.unjustifiedDiffs.length} divergência(s) sem justificativa.`
-                          : 'Todas as divergências estão justificadas.'}
-                      </p>
-                    </div>
-                  </>
-                )}
+            {totals.hasValues && !totals.hasDivergence && (
+              <div className="p-4 rounded-lg border bg-green-500/5 border-green-500/30 flex items-center gap-3">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                <div>
+                  <p className="font-medium text-green-600">Caixa Batendo!</p>
+                  <p className="text-sm text-muted-foreground">Os valores conferem. Pronto para enviar.</p>
+                </div>
               </div>
             )}
 
@@ -518,7 +535,6 @@ const LancarTurnoPage: React.FC = () => {
                 onClick={handleSubmit}
                 disabled={
                   !totals.hasValues ||
-                  totals.unjustifiedDiffs.length > 0 ||
                   isLoading ||
                   !isEditable
                 }

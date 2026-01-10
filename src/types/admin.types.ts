@@ -19,6 +19,7 @@ export interface AdminUserResponse {
     name: string;
     email: string;
     active: boolean;
+    is_super_admin: boolean;  // Super Administrator flag
     created_at: string;
     stores: UserStoreBinding[];
 }
@@ -40,6 +41,7 @@ export interface CreateUserRequest {
     email: string;
     password: string;
     active?: boolean;
+    is_super_admin?: boolean;  // Create as super admin (only super admins can set this)
     stores?: Array<{
         store_id: number;
         role: UserRole;
@@ -54,6 +56,7 @@ export interface UpdateUserRequest {
     email?: string;
     password?: string;
     active?: boolean;
+    is_super_admin?: boolean;  // Toggle super admin (only super admins can set this)
 }
 
 /**
