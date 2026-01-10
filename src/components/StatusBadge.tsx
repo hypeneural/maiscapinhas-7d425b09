@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-type StatusType = 'verde' | 'amarelo' | 'vermelho' | 'pendente' | 'conferido' | 'divergente';
+type StatusType = 'verde' | 'amarelo' | 'vermelho' | 'pendente' | 'conferido' | 'divergente' | 'rascunho';
 type VariantType = 'success' | 'warning' | 'error' | 'default' | 'info';
 
 interface StatusBadgeProps {
@@ -43,6 +43,11 @@ const statusConfig = {
     classes: 'bg-destructive/10 text-destructive border-destructive/30',
     label: 'Divergente',
     dotClass: 'bg-destructive',
+  },
+  rascunho: {
+    classes: 'bg-muted text-muted-foreground border-border',
+    label: 'Rascunho',
+    dotClass: 'bg-muted-foreground',
   },
 };
 
