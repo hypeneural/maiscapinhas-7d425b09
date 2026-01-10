@@ -5,7 +5,7 @@
  * Includes CRUD operations, photo upload, and user-store relationships.
  */
 
-import { apiGet, apiPost, apiPut, apiDelete, apiUpload } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete, apiUpload, api } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type {
     AdminStoreResponse,
@@ -88,25 +88,28 @@ export async function reactivateStore(id: number): Promise<AdminStoreResponse> {
  * @param id Store ID
  * @param file Image file (jpg, png, webp - max 5MB, min 800x600px)
  */
-export async function uploadPhoto(id: number, file: File): Promise<StorePhotoResponse> {
+export async function uploadPhoto(id: number, file: File | Blob): Promise<StorePhotoResponse> {
     const response = await apiUpload<ApiResponse<StorePhotoResponse>>(
         `/stores/${id}/photo`,
         file,
-        'photo',
-        'PUT'
+        'photo'
     );
     return response.data;
 }
 
 /**
  * Remove store photo
+ * Uses POST with FormData and remove=true
  */
 export async function removePhoto(id: number): Promise<StorePhotoResponse> {
-    const response = await apiPut<ApiResponse<StorePhotoResponse>>(
+    const formData = new FormData();
+    formData.append('remove', 'true');
+
+    const response = await api.post<ApiResponse<StorePhotoResponse>>(
         `/stores/${id}/photo`,
-        { remove: true }
+        formData
     );
-    return response.data;
+    return response.data.data;
 }
 
 // ============================================================

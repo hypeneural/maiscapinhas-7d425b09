@@ -4,7 +4,7 @@
  * Main sidebar navigation with role-based menu filtering.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +23,8 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ProfileEditModal } from '@/components/ProfileEditModal';
 import type { MenuItem } from '@/lib/config/menuConfig';
 
 interface AppSidebarProps {
@@ -86,6 +88,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onToggle }) =
   const { menu, isLoading } = useFilteredMenu();
   const { currentStore, currentRole, isSuperAdmin } = usePermissions();
   const [expandedSections, setExpandedSections] = React.useState<string[]>([]);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections((prev) =>
@@ -225,13 +228,21 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onToggle }) =
       <div className="p-3">
         {!collapsed && user && (
           <div className="flex items-center gap-3 px-2 py-2 mb-2">
-            <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center text-sm font-medium">
-              {isSuperAdmin ? (
-                <Crown className="h-4 w-4 text-amber-500" />
-              ) : (
-                user.name?.charAt(0) || 'U'
-              )}
-            </div>
+            <Avatar
+              className="h-8 w-8 cursor-pointer ring-2 ring-transparent hover:ring-primary/50 transition-all"
+              onClick={() => setProfileModalOpen(true)}
+            >
+              {user.avatar_url ? (
+                <AvatarImage src={user.avatar_url} alt={user.name || 'Avatar'} />
+              ) : null}
+              <AvatarFallback className="bg-sidebar-accent text-sm font-medium">
+                {isSuperAdmin ? (
+                  <Crown className="h-4 w-4 text-amber-500" />
+                ) : (
+                  user.name?.charAt(0) || 'U'
+                )}
+              </AvatarFallback>
+            </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
                 {user.name || 'Usuário'}
@@ -276,6 +287,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onToggle }) =
           <ChevronLeft className="w-3 h-3" />
         )}
       </Button>
+
+      {/* Profile Edit Modal */}
+      <ProfileEditModal
+        open={profileModalOpen}
+        onOpenChange={setProfileModalOpen}
+      />
     </aside>
   );
 };

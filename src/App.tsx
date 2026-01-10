@@ -27,7 +27,13 @@ const QuebraCaixa = lazy(() => import("@/pages/gestao/QuebraCaixa"));
 const MetasMensais = lazy(() => import("@/pages/config/MetasMensais"));
 const TabelaBonus = lazy(() => import("@/pages/config/TabelaBonus"));
 const RegrasComissao = lazy(() => import("@/pages/config/RegrasComissao"));
+const CommissionRuleForm = lazy(() => import("@/pages/config/CommissionRuleForm"));
+const BonusRuleForm = lazy(() => import("@/pages/config/BonusRuleForm"));
+const GoalForm = lazy(() => import("@/pages/config/GoalForm"));
+const GoalSplitsForm = lazy(() => import("@/pages/config/GoalSplitsForm"));
 const UsuariosLojas = lazy(() => import("@/pages/config/UsuariosLojas"));
+const UserForm = lazy(() => import("@/pages/config/UserForm"));
+const StoreForm = lazy(() => import("@/pages/config/StoreForm"));
 const Auditoria = lazy(() => import("@/pages/config/Auditoria"));
 const Unauthorized = lazy(() => import("@/pages/Unauthorized"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
@@ -117,9 +123,24 @@ const App = () => (
                     <MetasMensais />
                   </ProtectedRoute>
                 } />
+                <Route path="/config/metas/:id" element={
+                  <ProtectedRoute requiredRoles={['gerente', 'admin']}>
+                    <GoalForm />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/metas/:id/splits" element={
+                  <ProtectedRoute requiredRoles={['gerente', 'admin']}>
+                    <GoalSplitsForm />
+                  </ProtectedRoute>
+                } />
                 <Route path="/config/bonus" element={
                   <ProtectedRoute requiredRoles={['gerente', 'admin']}>
                     <TabelaBonus />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/bonus/:id" element={
+                  <ProtectedRoute requiredRoles={['gerente', 'admin']}>
+                    <BonusRuleForm />
                   </ProtectedRoute>
                 } />
                 <Route path="/config/comissoes" element={
@@ -127,9 +148,29 @@ const App = () => (
                     <RegrasComissao />
                   </ProtectedRoute>
                 } />
+                <Route path="/config/comissoes/:id" element={
+                  <ProtectedRoute requiredRoles={['gerente', 'admin']}>
+                    <CommissionRuleForm />
+                  </ProtectedRoute>
+                } />
                 <Route path="/config/usuarios" element={
                   <ProtectedRoute requiredRoles={['admin']}>
                     <UsuariosLojas />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/usuarios/:id" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <UserForm />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/lojas" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <UsuariosLojas />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/lojas/:id" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <StoreForm />
                   </ProtectedRoute>
                 } />
                 <Route path="/config/auditoria" element={

@@ -343,6 +343,7 @@ export interface RankingParams {
     month?: string;
     store_id?: number;
     limit?: number;
+    order?: 'asc' | 'desc';
 }
 
 export interface StorePerformanceParams {

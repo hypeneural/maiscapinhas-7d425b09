@@ -555,6 +555,7 @@ export interface RankingFilters {
     month?: string;
     store_id?: number;
     limit?: number;
+    order?: 'asc' | 'desc';
 }
 
 // ============================================================

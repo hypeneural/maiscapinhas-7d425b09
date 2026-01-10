@@ -5,7 +5,7 @@
  * Includes CRUD operations and avatar upload.
  */
 
-import { apiGet, apiPost, apiPut, apiDelete, apiUpload } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete, apiUpload, api } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type {
     AdminUserResponse,
@@ -79,25 +79,28 @@ export async function reactivateUser(id: number): Promise<AdminUserResponse> {
  * @param id User ID
  * @param file Image file (jpg, png, webp - max 2MB, min 200x200px)
  */
-export async function uploadAvatar(id: number, file: File): Promise<AvatarResponse> {
+export async function uploadAvatar(id: number, file: File | Blob): Promise<AvatarResponse> {
     const response = await apiUpload<ApiResponse<AvatarResponse>>(
         `/users/${id}/avatar`,
         file,
-        'avatar',
-        'PUT'
+        'avatar'
     );
     return response.data;
 }
 
 /**
  * Remove user avatar
+ * Uses POST with FormData and remove=true
  */
 export async function removeAvatar(id: number): Promise<AvatarResponse> {
-    const response = await apiPut<ApiResponse<AvatarResponse>>(
+    const formData = new FormData();
+    formData.append('remove', 'true');
+
+    const response = await api.post<ApiResponse<AvatarResponse>>(
         `/users/${id}/avatar`,
-        { remove: true }
+        formData
     );
-    return response.data;
+    return response.data.data;
 }
 
 /**

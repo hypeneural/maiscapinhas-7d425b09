@@ -4,7 +4,7 @@
  * Sidebar navigation for mobile devices, used inside Sheet drawer.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +15,8 @@ import { LogOut, Store, Loader2, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ProfileEditModal } from '@/components/ProfileEditModal';
 import type { MenuItem } from '@/lib/config/menuConfig';
 
 interface MobileSidebarProps {
@@ -57,6 +59,7 @@ export const MobileSidebar: React.FC<MobileSidebarProps> = ({ onNavigate }) => {
     const { menu, isLoading } = useFilteredMenu();
     const { currentStore, currentRole } = usePermissions();
     const [expandedSections, setExpandedSections] = React.useState<string[]>([]);
+    const [profileModalOpen, setProfileModalOpen] = useState(false);
 
     // Auto-expand sections that contain the current path
     const location = useLocation();
@@ -106,13 +109,17 @@ export const MobileSidebar: React.FC<MobileSidebarProps> = ({ onNavigate }) => {
             {/* User info */}
             {user && (
                 <div className="flex items-center gap-3 px-4 py-3 border-b">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                    <Avatar
+                        className="h-10 w-10 cursor-pointer ring-2 ring-transparent hover:ring-primary/50 transition-all"
+                        onClick={() => setProfileModalOpen(true)}
+                    >
                         {user.avatar_url ? (
-                            <img src={user.avatar_url} alt={user.name} className="w-full h-full rounded-full object-cover" />
-                        ) : (
-                            user.name?.charAt(0).toUpperCase() || 'U'
-                        )}
-                    </div>
+                            <AvatarImage src={user.avatar_url} alt={user.name || 'Avatar'} />
+                        ) : null}
+                        <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">
+                            {user.name?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                    </Avatar>
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{user.name || 'Usuário'}</p>
                         {currentRole && (
@@ -201,6 +208,12 @@ export const MobileSidebar: React.FC<MobileSidebarProps> = ({ onNavigate }) => {
                     Sair
                 </Button>
             </div>
+
+            {/* Profile Edit Modal */}
+            <ProfileEditModal
+                open={profileModalOpen}
+                onOpenChange={setProfileModalOpen}
+            />
         </div>
     );
 };

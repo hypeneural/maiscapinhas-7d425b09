@@ -1,25 +1,21 @@
 /**
  * Metas Mensais Page (Refactored)
  * 
- * Modern interface for managing monthly goals and sales splits.
- * Uses real API integration via React Query hooks.
+ * List page for monthly goals. Create/Edit uses dedicated pages.
  */
 
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Target, Plus, Pencil, Trash2, Store, Users, Calendar, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/PageHeader';
-import { DataTable, FormDialog, ConfirmDialog, PercentSplitter, type Column, type RowAction, type SplitUser, type SplitValue } from '@/components/crud';
-import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal, useSetGoalSplits } from '@/hooks/api/use-goals';
-import { useAdminStores, useStoreUsers } from '@/hooks/api/use-admin-stores';
-import { cn } from '@/lib/utils';
-import type { MonthlyGoalResponse, CreateGoalRequest } from '@/types/admin.types';
+import { DataTable, ConfirmDialog, type Column, type RowAction } from '@/components/crud';
+import { useGoals, useDeleteGoal } from '@/hooks/api/use-goals';
+import { useAdminStores } from '@/hooks/api/use-admin-stores';
+import type { MonthlyGoalResponse } from '@/types/admin.types';
 
 // ============================================================
 // Constants
@@ -47,24 +43,10 @@ const formatCurrency = (value: number) => {
 // ============================================================
 
 const MetasMensais: React.FC = () => {
+  const navigate = useNavigate();
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSplitsDialogOpen, setIsSplitsDialogOpen] = useState(false);
-  const [editingGoal, setEditingGoal] = useState<MonthlyGoalResponse | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<MonthlyGoalResponse | null>(null);
-
-  // Form state
-  const [form, setForm] = useState({
-    store_id: '',
-    month: '',
-    goal_amount: '',
-    active: true,
-  });
-
-  // Splits state
-  const [currentGoalForSplits, setCurrentGoalForSplits] = useState<MonthlyGoalResponse | null>(null);
-  const [splits, setSplits] = useState<SplitValue[]>([]);
 
   // Queries and mutations
   const { data: goalsData, isLoading } = useGoals({
@@ -73,14 +55,7 @@ const MetasMensais: React.FC = () => {
     per_page: 25,
   });
   const { data: storesData } = useAdminStores({ per_page: 100 });
-  const { data: storeUsers } = useStoreUsers(
-    currentGoalForSplits?.store_id || parseInt(form.store_id) || 0
-  );
-
-  const createMutation = useCreateGoal();
-  const updateMutation = useUpdateGoal();
   const deleteMutation = useDeleteGoal();
-  const setSplitsMutation = useSetGoalSplits();
 
   // Statistics
   const stats = useMemo(() => {
@@ -89,16 +64,6 @@ const MetasMensais: React.FC = () => {
     const active = goals.filter(g => g.active).length;
     return { total, active, count: goals.length };
   }, [goalsData]);
-
-  // Vendedores for splits (filter only vendedor role)
-  const vendedores: SplitUser[] = useMemo(() => {
-    return (storeUsers || [])
-      .filter(u => u.role === 'vendedor')
-      .map(u => ({
-        id: u.user_id,
-        name: u.user_name,
-      }));
-  }, [storeUsers]);
 
   // Table columns
   const columns: Column<MonthlyGoalResponse>[] = [
@@ -159,12 +124,12 @@ const MetasMensais: React.FC = () => {
     {
       label: 'Editar Meta',
       icon: <Pencil className="h-4 w-4" />,
-      onClick: (g) => handleEdit(g),
+      onClick: (g) => navigate(`/config/metas/${g.id}`),
     },
     {
       label: 'Definir Splits',
       icon: <Users className="h-4 w-4" />,
-      onClick: (g) => handleOpenSplits(g),
+      onClick: (g) => navigate(`/config/metas/${g.id}/splits`),
       separator: true,
     },
     {
@@ -176,79 +141,13 @@ const MetasMensais: React.FC = () => {
     },
   ];
 
-  // Handlers
-  const handleEdit = (goal: MonthlyGoalResponse) => {
-    setEditingGoal(goal);
-    setForm({
-      store_id: String(goal.store_id),
-      month: goal.month,
-      goal_amount: String(goal.goal_amount),
-      active: goal.active,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleCreate = () => {
-    setEditingGoal(null);
-    const now = new Date();
-    setForm({
-      store_id: '',
-      month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
-      goal_amount: '',
-      active: true,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleSubmit = async () => {
-    if (editingGoal) {
-      await updateMutation.mutateAsync({
-        id: editingGoal.id,
-        data: {
-          goal_amount: parseFloat(form.goal_amount),
-          active: form.active,
-        },
-      });
-    } else {
-      await createMutation.mutateAsync({
-        store_id: parseInt(form.store_id),
-        month: form.month,
-        goal_amount: parseFloat(form.goal_amount),
-        active: form.active,
-      });
-    }
-    setIsDialogOpen(false);
-  };
-
+  // Delete handler
   const handleDelete = async () => {
     if (confirmDelete) {
       await deleteMutation.mutateAsync(confirmDelete.id);
       setConfirmDelete(null);
     }
   };
-
-  const handleOpenSplits = (goal: MonthlyGoalResponse) => {
-    setCurrentGoalForSplits(goal);
-    setSplits(goal.splits?.map(s => ({
-      user_id: s.user_id,
-      percent: s.percent,
-    })) || []);
-    setIsSplitsDialogOpen(true);
-  };
-
-  const handleSaveSplits = async () => {
-    if (currentGoalForSplits) {
-      await setSplitsMutation.mutateAsync({
-        id: currentGoalForSplits.id,
-        splits,
-      });
-      setIsSplitsDialogOpen(false);
-    }
-  };
-
-  // Check if splits are valid (sum = 100)
-  const splitsTotal = splits.reduce((acc, s) => acc + s.percent, 0);
-  const isSplitsValid = Math.abs(splitsTotal - 100) < 0.01;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -319,7 +218,7 @@ const MetasMensais: React.FC = () => {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={handleCreate}>
+        <Button onClick={() => navigate('/config/metas/novo')}>
           <Plus className="h-4 w-4 mr-2" />
           Nova Meta
         </Button>
@@ -337,92 +236,6 @@ const MetasMensais: React.FC = () => {
         emptyMessage="Nenhuma meta encontrada"
         emptyIcon={<Target className="h-12 w-12 text-muted-foreground" />}
       />
-
-      {/* Create/Edit Dialog */}
-      <FormDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        title={editingGoal ? 'Editar Meta' : 'Nova Meta'}
-        onSubmit={handleSubmit}
-        loading={createMutation.isPending || updateMutation.isPending}
-        isEdit={!!editingGoal}
-      >
-        <div className="space-y-4">
-          {!editingGoal && (
-            <>
-              <div>
-                <Label>Loja *</Label>
-                <Select
-                  value={form.store_id}
-                  onValueChange={(v) => setForm(f => ({ ...f, store_id: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma loja" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {storesData?.data.map(store => (
-                      <SelectItem key={store.id} value={String(store.id)}>
-                        {store.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Mês de Referência *</Label>
-                <Input
-                  type="month"
-                  value={form.month}
-                  onChange={(e) => setForm(f => ({ ...f, month: e.target.value }))}
-                />
-              </div>
-            </>
-          )}
-
-          <div>
-            <Label>Valor da Meta (R$) *</Label>
-            <Input
-              type="number"
-              value={form.goal_amount}
-              onChange={(e) => setForm(f => ({ ...f, goal_amount: e.target.value }))}
-              placeholder="50000.00"
-              min={0}
-              step={100}
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-3 rounded-lg border">
-            <div>
-              <Label className="text-base">Meta Ativa</Label>
-              <p className="text-sm text-muted-foreground">Visível nos dashboards</p>
-            </div>
-            <Switch
-              checked={form.active}
-              onCheckedChange={(checked) => setForm(f => ({ ...f, active: checked }))}
-            />
-          </div>
-        </div>
-      </FormDialog>
-
-      {/* Splits Dialog */}
-      <FormDialog
-        open={isSplitsDialogOpen}
-        onOpenChange={setIsSplitsDialogOpen}
-        title={`Distribuição - ${currentGoalForSplits?.store?.name}`}
-        description={`${formatMonth(currentGoalForSplits?.month || '')} • Meta: ${formatCurrency(currentGoalForSplits?.goal_amount || 0)}`}
-        onSubmit={handleSaveSplits}
-        loading={setSplitsMutation.isPending}
-        submitText="Salvar Distribuição"
-        size="lg"
-      >
-        <PercentSplitter
-          users={vendedores}
-          value={splits}
-          onChange={setSplits}
-          total={100}
-        />
-      </FormDialog>
 
       {/* Confirm Delete Dialog */}
       <ConfirmDialog

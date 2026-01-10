@@ -2,7 +2,7 @@
  * Admin Types
  * 
  * TypeScript types for admin/configuration API endpoints.
- * Based on backend API specification v1.0 (2026-01-08)
+ * Based on backend API specification v1.0 (2026-01-10)
  */
 
 import type { UserRole } from './api';
@@ -19,8 +19,16 @@ export interface AdminUserResponse {
     name: string;
     email: string;
     active: boolean;
-    is_super_admin: boolean;  // Super Administrator flag
+    is_super_admin: boolean;
+    birth_date: string | null;      // "YYYY-MM-DD"
+    hire_date: string | null;       // "YYYY-MM-DD"
+    whatsapp: string | null;
+    avatar_url: string | null;
+    instagram: string | null;
+    cpf: string | null;             // "123.456.789-00"
+    pix_key: string | null;
     created_at: string;
+    updated_at: string;
     stores: UserStoreBinding[];
 }
 
@@ -37,11 +45,22 @@ export interface UserStoreBinding {
  * Request to create a new user
  */
 export interface CreateUserRequest {
+    // Required fields
     name: string;
     email: string;
     password: string;
+
+    // Optional fields
     active?: boolean;
-    is_super_admin?: boolean;  // Create as super admin (only super admins can set this)
+    is_super_admin?: boolean;
+    birth_date?: string;        // "YYYY-MM-DD"
+    hire_date?: string;         // "YYYY-MM-DD"
+    whatsapp?: string;          // max 20
+    instagram?: string;         // max 50, "@username"
+    cpf?: string;               // max 14, "123.456.789-00"
+    pix_key?: string;           // max 255
+
+    // Store bindings
     stores?: Array<{
         store_id: number;
         role: UserRole;
@@ -56,7 +75,13 @@ export interface UpdateUserRequest {
     email?: string;
     password?: string;
     active?: boolean;
-    is_super_admin?: boolean;  // Toggle super admin (only super admins can set this)
+    is_super_admin?: boolean;
+    birth_date?: string | null;
+    hire_date?: string | null;
+    whatsapp?: string | null;
+    instagram?: string | null;
+    cpf?: string | null;
+    pix_key?: string | null;
 }
 
 /**
@@ -72,15 +97,95 @@ export interface AvatarResponse {
 // ============================================================
 
 /**
+ * Time slot for opening hours
+ */
+export interface TimeSlot {
+    start: string;  // HH:MM format
+    end: string;    // HH:MM format
+}
+
+/**
+ * Exception for specific date
+ */
+export interface HoursException {
+    date: string;           // YYYY-MM-DD
+    closed?: boolean;       // true = closed this day
+    hours?: TimeSlot[];     // special hours (overrides weekly)
+    reason?: string;        // ex: "Natal"
+}
+
+/**
+ * Weekly schedule
+ */
+export interface WeeklySchedule {
+    mon: TimeSlot[];
+    tue: TimeSlot[];
+    wed: TimeSlot[];
+    thu: TimeSlot[];
+    fri: TimeSlot[];
+    sat: TimeSlot[];
+    sun: TimeSlot[];
+}
+
+/**
+ * Opening hours structure
+ */
+export interface OpeningHours {
+    tz: string;                     // Timezone IANA (ex: America/Sao_Paulo)
+    weekly: WeeklySchedule;
+    exceptions?: HoursException[];
+}
+
+/**
+ * Human-readable hours info (from API)
+ */
+export interface HoursHuman {
+    is_open_now: boolean;
+    status_label: string;
+    today_hours_label: string;
+    weekly_label: string;
+}
+
+/**
  * Store response from /admin/stores
  */
 export interface AdminStoreResponse {
     id: number;
     name: string;
+    codigo: string | null;
     city: string;
     active: boolean;
-    users_count?: number;
+    troco_padrao: number | null;
+
+    // Image
+    photo_url: string | null;
+
+    // Address
+    address: string | null;
+    neighborhood: string | null;
+    state: string | null;           // UF (2 chars)
+    zip_code: string | null;
+    full_address: string | null;    // Calculated by backend
+
+    // GPS
+    latitude: number | null;
+    longitude: number | null;
+
+    // Contact
+    phone: string | null;
+    whatsapp: string | null;
+    instagram: string | null;
+
+    // Business
+    opening_hours: OpeningHours | null;
+    cnpj: string | null;
+    bio_enabled: boolean;
+
     created_at: string;
+    updated_at: string;
+
+    // Relationships
+    users_count?: number;
     users?: StoreUserBinding[];
 }
 
@@ -100,9 +205,34 @@ export interface StoreUserBinding {
  * Request to create a store
  */
 export interface CreateStoreRequest {
+    // Required
     name: string;
     city: string;
+
+    // Optional
     active?: boolean;
+    codigo?: string;            // max 20
+
+    // Address
+    address?: string;           // max 255
+    neighborhood?: string;      // max 100
+    state?: string;             // max 2 (UF)
+    zip_code?: string;          // max 10
+
+    // GPS
+    latitude?: number;          // -90 to 90
+    longitude?: number;         // -180 to 180
+
+    // Contact
+    phone?: string;             // max 20
+    whatsapp?: string;          // max 20
+    instagram?: string;         // max 50
+
+    // Business
+    opening_hours?: OpeningHours;
+    cnpj?: string;              // max 18
+    troco_padrao?: number;      // min 0
+    bio_enabled?: boolean;
 }
 
 /**
@@ -112,6 +242,20 @@ export interface UpdateStoreRequest {
     name?: string;
     city?: string;
     active?: boolean;
+    codigo?: string | null;
+    address?: string | null;
+    neighborhood?: string | null;
+    state?: string | null;
+    zip_code?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    phone?: string | null;
+    whatsapp?: string | null;
+    instagram?: string | null;
+    opening_hours?: OpeningHours | null;
+    cnpj?: string | null;
+    troco_padrao?: number | null;
+    bio_enabled?: boolean;
 }
 
 /**

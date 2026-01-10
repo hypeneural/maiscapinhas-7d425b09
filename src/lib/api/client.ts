@@ -14,18 +14,23 @@ const REQUEST_TIMEOUT = 30000;
 
 /**
  * Axios instance configured for MaisCapinhas API
+ * 
+ * IMPORTANT: We do NOT set a default Content-Type header here.
+ * The interceptor below handles Content-Type dynamically:
+ * - For FormData: Let the browser set it automatically (with boundary)
+ * - For other requests: Set application/json
  */
 export const api = axios.create({
     baseURL: API_BASE_URL,
     timeout: REQUEST_TIMEOUT,
     headers: {
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
+        // ⚠️ NO Content-Type here! It's handled in the interceptor below.
     },
 });
 
 /**
- * Request interceptor: Inject auth token and request ID
+ * Request interceptor: Inject auth token, request ID, and handle Content-Type
  */
 api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
@@ -37,6 +42,17 @@ api.interceptors.request.use(
 
         // Add request ID for traceability
         config.headers['X-Request-Id'] = crypto.randomUUID();
+
+        // Handle Content-Type based on data type
+        // For FormData, do NOT set Content-Type - let the browser handle it with boundary
+        // For other data types, set application/json
+        if (config.data instanceof FormData) {
+            // Delete any existing Content-Type to let browser set multipart/form-data with boundary
+            delete config.headers['Content-Type'];
+        } else if (config.data !== undefined) {
+            // Only set JSON content type if there's data and it's not FormData
+            config.headers['Content-Type'] = 'application/json';
+        }
 
         return config;
     },
@@ -99,34 +115,28 @@ export async function apiDelete<T>(url: string): Promise<T> {
 /**
  * Helper to upload files via multipart/form-data
  * 
- * IMPORTANT: For uploads with PUT method, we use POST with _method=PUT
- * (Laravel method spoofing) to avoid issues with PUT + multipart/form-data.
- * Also, we do NOT set Content-Type manually - the browser sets it automatically
- * with the correct boundary for multipart/form-data.
+ * IMPORTANT: 
+ * - Always use POST method (backend accepts POST for file uploads)
+ * - Do NOT set Content-Type manually - the browser sets it automatically
+ *   with the correct boundary for multipart/form-data
+ * - The interceptor above will NOT add Content-Type for FormData
  */
 export async function apiUpload<T>(
     url: string,
-    file: File,
-    fieldName: string = 'file',
-    method: 'POST' | 'PUT' = 'PUT'
+    file: File | Blob,
+    fieldName: string = 'file'
 ): Promise<T> {
     const formData = new FormData();
-    formData.append(fieldName, file);
 
-    // Use Laravel method spoofing for PUT requests
-    // Some servers have issues with PUT + multipart/form-data
-    const actualMethod = method === 'PUT' ? 'POST' : method;
-    if (method === 'PUT') {
-        formData.append('_method', 'PUT');
+    // Handle both File and Blob (Blob from canvas crop needs filename)
+    if (file instanceof Blob && !(file instanceof File)) {
+        formData.append(fieldName, file, `${fieldName}.jpg`);
+    } else {
+        formData.append(fieldName, file);
     }
 
-    const response = await api.request<T>({
-        method: actualMethod,
-        url,
-        data: formData,
-        // ⚠️ Do NOT set Content-Type manually!
-        // The browser will set it automatically with the correct boundary
-    });
+    // Always use POST method (no _method spoofing needed)
+    const response = await api.post<T>(url, formData);
 
     return response.data;
 }

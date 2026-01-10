@@ -36,6 +36,14 @@ const RankingVendas: React.FC = () => {
     limit: 50,
   });
 
+  // Fetch worst sellers (ascending order)
+  const { data: worstRankingData } = useRanking({
+    month: selectedMonth,
+    store_id: selectedLoja !== 'todas' ? Number(selectedLoja) : undefined,
+    limit: 5,
+    order: 'asc',
+  });
+
   // Combined podium + ranking list
   const allRankingEntries = useMemo(() => {
     if (!rankingData) return [];
@@ -51,6 +59,12 @@ const RankingVendas: React.FC = () => {
       rank: entry.position,
     }));
   }, [allRankingEntries]);
+
+  // Bottom 5 sellers
+  const worstSellers = useMemo(() => {
+    if (!worstRankingData) return [];
+    return worstRankingData.ranking || [];
+  }, [worstRankingData]);
 
   const getRankIcon = (position: number) => {
     if (position === 1) return <Trophy className="w-6 h-6 text-yellow-500" />;
@@ -324,6 +338,48 @@ const RankingVendas: React.FC = () => {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Piores do Mês */}
+      {worstSellers.length > 0 && (
+        <Card className="border-red-200/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingDown className="w-5 h-5 text-red-500" />
+              Piores do Mês
+              <InfoTooltip>Os 5 vendedores com menor volume de vendas no período. Identifique necessidades de treinamento ou suporte.</InfoTooltip>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {worstSellers.slice(0, 5).map((item, index) => (
+                <div
+                  key={item.seller.id}
+                  className="flex flex-col items-center p-4 rounded-lg bg-red-50/50 dark:bg-red-950/20 border border-red-200/50"
+                >
+                  <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/50 flex items-center justify-center text-red-600 dark:text-red-400 font-bold text-sm mb-2">
+                    {index + 1}
+                  </div>
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-lg font-bold text-white mb-2">
+                    {item.seller.avatar_url ? (
+                      <img src={item.seller.avatar_url} alt={item.seller.name} className="w-full h-full object-cover rounded-full" />
+                    ) : (
+                      item.seller.name.charAt(0)
+                    )}
+                  </div>
+                  <p className="font-semibold text-center truncate w-full">{item.seller.name}</p>
+                  <p className="text-xs text-muted-foreground truncate w-full text-center">{item.seller.store_name}</p>
+                  <p className="font-bold text-red-600 dark:text-red-400 mt-2">
+                    R$ {item.total_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                  <StatusBadge variant="error" className="mt-1">
+                    {item.achievement_rate.toFixed(0)}% da meta
+                  </StatusBadge>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
