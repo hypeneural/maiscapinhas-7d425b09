@@ -1,506 +1,699 @@
-# ERP Mais Capinhas – Verão 2026
+# 🛍️ ERP Mais Capinhas – Verão 2026
 
-Sistema ERP Web completo para gestão de vendas, conferência de caixa e acompanhamento de metas da rede **Mais Capinhas**.
+<div align="center">
 
-![React](https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?logo=tailwindcss)
-![Vite](https://img.shields.io/badge/Vite-5.0-646CFF?logo=vite)
-![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-Latest-000000?logo=shadcnui)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
+![Status](https://img.shields.io/badge/status-development-yellow.svg)
+![License](https://img.shields.io/badge/license-proprietary-red.svg)
+![React](https://img.shields.io/badge/React-18.3.1-61dafb.svg?logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6.svg?logo=typescript)
+![Tailwind](https://img.shields.io/badge/Tailwind-3.x-38bdf8.svg?logo=tailwindcss)
 
----
+**Sistema ERP Web moderno para gestão de vendas, conferência de caixa e controle de metas da rede Mais Capinhas**
 
-## Índice
+[📖 Documentação](#-documentação-adicional) •
+[🚀 Como Rodar](#-como-rodar) •
+[🏗️ Arquitetura](#️-arquitetura) •
+[👥 Roles & Permissões](#-roles--permissões-rbac) •
+[💰 Regras de Negócio](#-regras-de-negócio)
 
-- [Visão Geral](#visão-geral)
-- [Stack Tecnológica](#stack-tecnológica)
-- [Funcionalidades Implementadas](#funcionalidades-implementadas)
-- [Estrutura do Projeto](#estrutura-do-projeto)
-- [Como Executar](#como-executar)
-- [Sistema de Permissões (RBAC)](#sistema-de-permissões-rbac)
-- [Status do Desenvolvimento](#status-do-desenvolvimento)
-- [Sugestões de Endpoints para Backend](#sugestões-de-endpoints-para-backend)
-- [Sugestões de Melhorias no Frontend](#sugestões-de-melhorias-no-frontend)
+</div>
 
 ---
 
-## Visão Geral
+## 📋 Índice
 
-O **ERP Mais Capinhas** é uma aplicação web responsiva projetada para:
+- [Visão Geral](#-visão-geral)
+- [Stack Tecnológica](#-stack-tecnológica)
+- [Arquitetura do Sistema](#️-arquitetura)
+- [Roles & Permissões (RBAC)](#-roles--permissões-rbac)
+- [Regras de Negócio](#-regras-de-negócio)
+  - [Bônus Diário](#-bônus-diário)
+  - [Comissão Mensal](#-comissão-mensal)
+- [Funcionalidades Implementadas](#-funcionalidades-implementadas)
+- [PWA & Mobile](#-pwa--mobile)
+- [Boas Práticas Utilizadas](#-boas-práticas-utilizadas)
+- [Estrutura do Projeto](#-estrutura-do-projeto)
+- [Como Rodar](#-como-rodar)
+- [Status do Desenvolvimento](#-status-do-desenvolvimento)
+- [Documentação Adicional](#-documentação-adicional)
 
-- **Vendedores**: Acompanhar metas diárias/mensais com gamificação e bônus
-- **Conferentes**: Validar fechamento de caixa e identificar divergências
-- **Gerentes/Admins**: Visualizar rankings, desempenho de lojas e configurar regras
+---
+
+## 🎯 Visão Geral
+
+O **ERP Mais Capinhas** é um sistema web completo desenvolvido para gerenciar a operação de vendas da rede de lojas Mais Capinhas. O sistema foi projetado seguindo a regra 80/20, focando nas funcionalidades que geram maior valor para o negócio.
+
+### Principais Objetivos
+
+- **📊 Vendedores**: Interface gamificada com odômetro de metas, bônus em tempo real e projeção de comissões
+- **✅ Conferentes**: Fluxo simplificado de conferência de caixa com validação de divergências
+- **📈 Gerentes/Admin**: Dashboards consolidados, ranking de vendedores e relatórios de performance
 
 ### Filosofia de Design
 
-- **80/20**: Interface ultra-simples para vendedores (foco em dois indicadores principais)
-- **Gamificação**: Bônus progressivos e contagem regressiva para criar senso de urgência
-- **Validação Forte**: Conferência de caixa não permite fechar com divergências não justificadas
-- **Cores Semafóricas**: Verde (meta batida/caixa ok), Amarelo (atenção), Vermelho (divergência/abaixo da meta)
+| Princípio | Descrição |
+|-----------|-----------|
+| **80/20** | Foco nas funcionalidades que geram 80% do valor |
+| **Gamificação** | Elementos de jogo para motivar vendedores |
+| **Validação Forte** | Divergências exigem justificativa obrigatória |
+| **Cores Semafóricas** | Verde/Amarelo/Vermelho para indicar status |
+| **Mobile First** | Interface responsiva otimizada para dispositivos móveis |
 
 ---
 
-## Stack Tecnológica
+## 🛠️ Stack Tecnológica
 
-### Core
+### Core Framework
 
 | Tecnologia | Versão | Propósito |
 |------------|--------|-----------|
-| **React** | 18.3.1 | Biblioteca UI principal |
-| **TypeScript** | 5.0+ | Tipagem estática |
-| **Vite** | 5.0+ | Build tool e dev server |
-| **Tailwind CSS** | 3.4+ | Estilização utility-first |
-| **shadcn/ui** | Latest | Componentes UI acessíveis |
+| **React** | 18.3.1 | Framework UI com hooks modernos |
+| **TypeScript** | 5.x | Tipagem estática para segurança |
+| **Vite** | 5.x | Build tool ultra-rápido |
+| **React Router** | 6.30 | Roteamento SPA declarativo |
 
-### Bibliotecas de Suporte
+### Estilização & UI
 
-| Biblioteca | Versão | Propósito |
+| Tecnologia | Versão | Propósito |
 |------------|--------|-----------|
-| **React Router DOM** | 6.30+ | Navegação e rotas |
-| **Recharts** | 2.15+ | Gráficos (velocímetros, barras, pizza, área) |
-| **TanStack Query** | 5.83+ | Gerenciamento de estado servidor/cache |
-| **React Hook Form** | 7.61+ | Gerenciamento de formulários |
-| **Zod** | 3.25+ | Validação de schemas |
-| **Lucide React** | 0.462+ | Biblioteca de ícones |
-| **date-fns** | 3.6+ | Manipulação de datas |
-| **class-variance-authority** | 0.7+ | Variantes de componentes |
-| **Sonner** | 1.7+ | Notificações toast |
+| **Tailwind CSS** | 3.x | Utility-first CSS framework |
+| **shadcn/ui** | latest | Componentes acessíveis e customizáveis |
+| **Lucide React** | 0.462 | Biblioteca de ícones |
+| **Recharts** | 2.15 | Gráficos e visualizações |
 
-### Identidade Visual
+### State Management & Data Fetching
 
-```css
-/* Paleta de Cores */
---primary: hsl(310 47% 27%)     /* #6C2460 - Roxo (marca) */
---secondary: hsl(172 85% 33%)   /* #0C9C90 - Teal (ações) */
---accent: hsl(49 100% 47%)      /* #F0CC00 - Amarelo (destaques) */
+| Tecnologia | Versão | Propósito |
+|------------|--------|-----------|
+| **TanStack Query** | 5.83 | Cache, fetching e sincronização |
+| **Axios** | 1.13 | Cliente HTTP |
+| **Zod** | 3.25 | Validação de schemas |
+| **React Hook Form** | 7.61 | Gerenciamento de formulários |
 
-/* Semânticas */
---success: hsl(152 69% 31%)     /* Verde - Meta batida */
---warning: hsl(45 93% 47%)      /* Amarelo - Atenção */
---destructive: hsl(0 84% 60%)   /* Vermelho - Crítico */
+### Animações & UX
 
-/* Neutras */
---background: hsl(0 0% 98%)     /* #FAFAFA */
---muted: hsl(0 0% 96%)          /* #F5F5F5 */
---border: hsl(0 0% 89%)         /* #E4E4E4 */
+| Tecnologia | Versão | Propósito |
+|------------|--------|-----------|
+| **canvas-confetti** | 1.9 | Celebrações visuais |
+| **Embla Carousel** | 8.6 | Carrosséis touch-friendly |
+| **Sonner** | 1.7 | Notificações toast |
+
+### PWA & Offline
+
+| Tecnologia | Propósito |
+|------------|-----------|
+| **Vite PWA** | Service Worker e manifest |
+| **Workbox** | Estratégias de cache offline |
+
+---
+
+## 🏗️ Arquitetura
+
+### Padrão de Camadas
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         PRESENTATION LAYER                       │
+│  Pages • Components • Layouts • UI Components (shadcn)          │
+├─────────────────────────────────────────────────────────────────┤
+│                          HOOKS LAYER                             │
+│  useAuth • usePermissions • useXxxQuery • useXxxMutation        │
+├─────────────────────────────────────────────────────────────────┤
+│                         SERVICES LAYER                           │
+│  auth.service • dashboard.service • cash.service • etc          │
+├─────────────────────────────────────────────────────────────────┤
+│                           API LAYER                              │
+│  client.ts • token.ts • error-handler.ts                        │
+├─────────────────────────────────────────────────────────────────┤
+│                          TYPES LAYER                             │
+│  api.ts • conference.types • dashboard.types • admin.types      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Fluxo de Dados
+
+```
+┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐
+│   Page   │─────>│   Hook   │─────>│  Service │─────>│   API    │
+│Component │      │ (Query)  │      │  Layer   │      │ Client   │
+└──────────┘      └──────────┘      └──────────┘      └──────────┘
+     ▲                 │                                    │
+     │                 │                                    │
+     │                 ▼                                    ▼
+     │           ┌──────────┐                        ┌──────────┐
+     └───────────│  Cache   │                        │  Backend │
+                 │(TanStack)│                        │   API    │
+                 └──────────┘                        └──────────┘
 ```
 
 ---
 
-## Funcionalidades Implementadas
+## 👥 Roles & Permissões (RBAC)
 
-### Dashboards por Perfil
+O sistema implementa um **RBAC (Role-Based Access Control)** granular com 4 níveis hierárquicos + Super Admin.
 
-| Dashboard | Componentes | Status |
-|-----------|-------------|--------|
-| **Vendedor** | Gauge velocímetro, Timer regressivo, Barra de bônus, Resumo mensal | ✅ Completo |
-| **Conferente** | Cards de status, Lista de pendências, Ações rápidas | ✅ Completo |
-| **Admin/Gerente** | Top 3 vendedores, Farol de lojas, Indicador de risco | ✅ Completo |
+### Hierarquia de Roles
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        SUPER ADMIN                               │
+│         (Acesso total a todas lojas e funcionalidades)          │
+├─────────────────────────────────────────────────────────────────┤
+│                          ADMIN (4)                               │
+│   Gestão completa • Usuários • Lojas • Regras • Auditoria       │
+├─────────────────────────────────────────────────────────────────┤
+│                        GERENTE (3)                               │
+│   Relatórios • Ranking • Aprovações • Metas locais             │
+├─────────────────────────────────────────────────────────────────┤
+│                       CONFERENTE (2)                             │
+│   Lançamento de turnos • Conferência • Aprovações               │
+├─────────────────────────────────────────────────────────────────┤
+│                        VENDEDOR (1)                              │
+│   Dashboard pessoal • Vendas • Bônus • Comissões                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Permissões Granulares
+
+O sistema possui **28+ permissões granulares**:
+
+```typescript
+type Permission =
+  // Dashboard
+  | 'dashboard:view'
+  // Sales
+  | 'sales:create' | 'sales:view' | 'sales:edit' | 'sales:delete'
+  // Bonus/Commission
+  | 'bonus:view_own' | 'bonus:view_all'
+  | 'commission:view_own' | 'commission:view_all'
+  // Shifts & Closings
+  | 'shift:create' | 'shift:view'
+  | 'closing:submit' | 'closing:approve' | 'closing:reject'
+  | 'divergence:view'
+  // Goals & Rules
+  | 'goals:view' | 'goals:manage'
+  | 'rules:view' | 'rules:manage'
+  // Reports
+  | 'ranking:view' | 'reports:store_performance'
+  | 'reports:cash_integrity' | 'reports:consolidated'
+  // Admin
+  | 'users:view' | 'users:manage'
+  | 'stores:view' | 'stores:manage' | 'audit:view';
+```
+
+### Mapeamento Role → Permissões
+
+| Permissão | Admin | Gerente | Conferente | Vendedor |
+|-----------|:-----:|:-------:|:----------:|:--------:|
+| dashboard:view | ✅ | ✅ | ✅ | ✅ |
+| sales:view | ✅ | ✅ | ❌ | ✅ |
+| sales:create | ❌ | ❌ | ❌ | ✅ |
+| bonus:view_own | ✅ | ✅ | ❌ | ✅ |
+| bonus:view_all | ✅ | ✅ | ❌ | ❌ |
+| shift:create | ❌ | ❌ | ✅ | ✅ |
+| closing:approve | ✅ | ✅ | ✅ | ❌ |
+| goals:manage | ✅ | ✅ | ❌ | ❌ |
+| users:manage | ✅ | ❌ | ❌ | ❌ |
+| audit:view | ✅ | ❌ | ❌ | ❌ |
+
+### Uso no Código
+
+```typescript
+// Hook de permissões
+const { hasPermission, hasMinRole, isAdmin, currentRole } = usePermissions();
+
+// Verificar permissão específica
+if (hasPermission('closing:approve')) {
+  // Pode aprovar fechamentos
+}
+
+// Verificar nível mínimo
+if (hasMinRole('gerente')) {
+  // Gerente ou superior
+}
+
+// Componente de guard
+<RoleGuard roles={['admin', 'gerente']}>
+  <AdminContent />
+</RoleGuard>
+
+// Componentes de conveniência
+<AdminOnly><SecretContent /></AdminOnly>
+<CanApprove><ApprovalButton /></CanApprove>
+```
+
+---
+
+## 💰 Regras de Negócio
+
+### 🎁 Bônus Diário
+
+O sistema de bônus diário é baseado em **faixas de venda** e requer **conferência de caixa sem divergências**.
+
+#### Tabela de Bônus (Configurável)
+
+| Faixa de Venda | Bônus |
+|----------------|-------|
+| R$ 500 - R$ 999,99 | R$ 10,00 |
+| R$ 1.000 - R$ 1.499,99 | R$ 25,00 |
+| R$ 1.500 - R$ 1.999,99 | R$ 40,00 |
+| R$ 2.000+ | R$ 60,00 |
+
+#### Regras de Elegibilidade
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    FLUXO DE ELEGIBILIDADE                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   1. Vendedor atinge faixa de venda                             │
+│              ↓                                                   │
+│   2. Conferente registra fechamento de caixa                    │
+│              ↓                                                   │
+│   3. Sistema verifica: Valor Sistema = Valor Real?              │
+│              ↓                                                   │
+│        ┌─────┴─────┐                                            │
+│        │           │                                            │
+│       SIM         NÃO                                           │
+│        ↓           ↓                                            │
+│    ✅ ELEGÍVEL   Divergência detectada                          │
+│                   ↓                                              │
+│              Justificativa obrigatória                          │
+│                   ↓                                              │
+│              ❌ NÃO ELEGÍVEL                                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Interface Gamificada
+
+O dashboard do vendedor apresenta:
+
+- **Barra de progresso**: Quanto falta para a próxima faixa
+- **Valor do próximo bônus**: Motivação visual
+- **Mensagem motivacional**: Feedback contextual
+
+```typescript
+interface BonusGamification {
+  current_amount: number;       // Vendido até agora
+  next_bonus_goal: number;      // Próxima faixa
+  gap_to_bonus: number;         // Quanto falta
+  next_bonus_value: number;     // Valor do próximo bônus
+  current_bonus_earned: number; // Já ganho hoje
+  message: string;              // "Faltam R$ 150 para +R$ 25!"
+}
+```
+
+### 📊 Comissão Mensal
+
+Sistema escalonado baseado no **percentual de atingimento da meta mensal**.
+
+#### Tabela de Comissões (Configurável)
+
+| % da Meta | % Comissão |
+|-----------|------------|
+| 80% - 99% | 2% |
+| 100% - 119% | 3% |
+| 120%+ | 4% |
+
+#### Cálculo Projetado
+
+O sistema calcula em tempo real:
+
+```typescript
+interface MonthlyCommission {
+  month: string;                    // "2026-01"
+  sales_mtd: number;                // Vendas do mês até agora
+  goal_amount: number;              // Meta mensal
+  achievement_rate: number;         // % atingido
+  days_elapsed: number;             // Dias passados
+  days_total: number;               // Dias totais
+  current_tier: number;             // Tier atual (2, 3 ou 4%)
+  current_commission_value: number; // Comissão já garantida
+  next_tier: number | null;         // Próximo tier
+  gap_to_next_tier: number;         // Quanto falta
+  projected_sales: number;          // Projeção linear
+  projected_achievement: number;    // % projetado
+  projected_tier: number;           // Tier projetado
+  potential_commission: number;     // Comissão potencial
+}
+```
+
+#### Exemplo Prático
+
+```
+Vendedor: Ana
+Meta Mensal: R$ 50.000
+Dia atual: 15 de Janeiro (50% do mês)
+Vendas MTD: R$ 28.000 (56% da meta)
+
+Projeção Linear: R$ 28.000 × 2 = R$ 56.000 (112% da meta)
+Tier Projetado: 3% (entre 100-119%)
+Comissão Potencial: R$ 56.000 × 3% = R$ 1.680
+
+Gap para Tier 4%:
+- Meta 120%: R$ 60.000
+- Faltam: R$ 32.000 até fim do mês
+```
+
+---
+
+## ✨ Funcionalidades Implementadas
+
+### Dashboards por Role
+
+| Role | Dashboard | Principais Features |
+|------|-----------|---------------------|
+| **Vendedor** | `DashboardVendedor` | Odômetro de metas, BonusProgress, projeção de comissão, ritmo diário |
+| **Conferente** | `DashboardConferente` | Pendentes, divergências, top vendedores, vendas da loja |
+| **Admin/Gerente** | `DashboardAdmin` | Consolidado multi-loja, closings summary, top performers |
 
 ### Módulo Faturamento (Vendedor)
 
-| Tela | Funcionalidade | Status |
-|------|----------------|--------|
-| **Extrato de Vendas** | Histórico diário, vendas vs meta, indicadores visuais | ✅ Completo |
-| **Meus Bônus** | Lista de bônus por dia, status (pendente/aprovado/rejeitado), totalizadores | ✅ Completo |
-| **Minhas Comissões** | Projeção de comissão, faixas escalonadas, simulador | ✅ Completo |
+- **Extrato de Vendas**: Histórico detalhado com filtros
+- **Meus Bônus**: Histórico de bônus por período
+- **Minhas Comissões**: Comissões mensais detalhadas
 
 ### Módulo Conferência (Conferente)
 
-| Tela | Funcionalidade | Status |
-|------|----------------|--------|
-| **Lançar Turno** | Filtros, grid comparativo Sistema vs Real, cálculo de diferença, justificativa obrigatória | ✅ Completo |
-| **Divergências** | Lista ordenada por antiguidade/valor, ações rápidas | ✅ Completo |
-| **Histórico de Envelopes** | Consulta de fechamentos passados, filtros avançados, exportação | ✅ Completo |
+- **Lançar Turno**: Formulário de fechamento de caixa
+- **Divergências**: Fila de pendências com priorização
+- **Histórico de Envelopes**: Consulta de fechamentos anteriores
 
 ### Módulo Gestão (Gerente/Admin)
 
-| Tela | Funcionalidade | Status |
-|------|----------------|--------|
-| **Ranking de Vendas** | Top vendedores, pódio animado, gráficos comparativos, filtros por período | ✅ Completo |
-| **Desempenho por Loja** | Farol de lojas, gráficos de evolução, comparativo mês atual vs anterior | ✅ Completo |
-| **Quebra de Caixa** | Relatório de divergências, ranking de maior % erro, indicadores de risco | ✅ Completo |
+- **Ranking de Vendas**: Podium + lista com posição anterior
+- **Desempenho de Lojas**: Farol semafórico de performance
+- **Quebra de Caixa**: Análise de integridade de caixa
 
 ### Módulo Configurações (Admin)
 
-| Tela | Funcionalidade | Status |
-|------|----------------|--------|
-| **Metas Mensais** | CRUD de metas por loja, distribuição entre vendedores | ✅ Completo |
-| **Tabela de Bônus** | CRUD de faixas de bônus diário | ✅ Completo |
-| **Regras de Comissão** | CRUD de faixas de comissão escalonada | ✅ Completo |
-| **Usuários & Lojas** | CRUD de usuários e lojas, gestão de permissões | ✅ Completo |
+- **Metas Mensais**: CRUD de metas por loja/vendedor
+- **Tabela de Bônus**: CRUD de faixas de bônus
+- **Regras de Comissão**: CRUD de tiers de comissão
+- **Usuários & Lojas**: Gestão completa
+- **Auditoria**: Log de ações do sistema
 
 ### Componentes Reutilizáveis
 
 | Componente | Descrição |
 |------------|-----------|
-| `GaugeChart` | Gráfico velocímetro animado com cores semafóricas |
-| `StatusBadge` | Badges de status com variantes (success/warning/error/default) |
-| `StatCard` | Cards de estatísticas com ícones e tendência |
-| `MoneyInput` | Input monetário formatado (R$) |
-| `BonusProgress` | Barra de progresso para próximo bônus |
-| `CountdownTimer` | Timer regressivo animado |
-| `DataTable` | Tabela reutilizável com ordenação e paginação |
-| `PageHeader` | Cabeçalho de página com breadcrumbs e ações |
-| `EmptyState` | Estado vazio com ilustração e CTA |
-| `RoleGuard` | HOC para proteção de componentes por permissão |
+| `GaugeChart` | Odômetro animado com gradiente |
+| `CountdownTimer` | Timer regressivo estilizado |
+| `BonusProgress` | Barra de progresso gamificada |
+| `StatCard` | Card de estatística com variantes |
+| `StatusBadge` | Badge semafórico (verde/amarelo/vermelho) |
+| `DataTable` | Tabela com paginação e filtros |
+| `MoneyInput` | Input monetário formatado |
+| `MonthPicker` | Seletor de mês/ano |
+| `RoleGuard` | HOC para proteção de rotas/componentes |
+| `EmptyState` | Estado vazio com ilustração |
 
 ---
 
-## Estrutura do Projeto
+## 📱 PWA & Mobile
+
+### Progressive Web App
+
+O sistema está configurado como PWA com:
+
+- **Manifest**: Ícones, cores, orientação portrait
+- **Service Worker**: Cache offline com Workbox
+- **Installable**: Prompt de instalação nativo
+- **Offline Page**: Fallback quando offline
+- **Apple Touch Icons**: Suporte iOS
+
+### Recursos Configurados
+
+| Recurso | Status | Descrição |
+|---------|--------|-----------|
+| Web Manifest | ✅ | name, icons, theme_color |
+| Service Worker | ✅ | Workbox auto-update |
+| Offline Support | ✅ | Página offline fallback |
+| Install Prompt | ✅ | Componente PWAInstallPrompt |
+| Apple Touch Icon | ✅ | Suporte iOS/Safari |
+
+### Responsividade
+
+- **Mobile First**: Layouts otimizados para telas pequenas
+- **Breakpoints**: `sm` (640px), `md` (768px), `lg` (1024px), `xl` (1280px)
+- **Touch Friendly**: Botões e interações adequados para touch
+- **Drawer Sidebar**: Navegação lateral colapsável em mobile
+
+---
+
+## ✅ Boas Práticas Utilizadas
+
+### TypeScript & Tipagem
+
+- **Tipagem estrita** em todo o projeto
+- **Zod** para validação runtime de schemas
+- **Inferência automática** de tipos a partir de schemas
+- **Generic types** para componentes reutilizáveis
+
+### React Query (TanStack Query)
+
+- **Query keys organizadas** por domínio
+- **Cache strategies** por role (vendedor: 1min, admin: 5min)
+- **Optimistic updates** para melhor UX
+- **Prefetching** de dados críticos
+
+### Segurança
+
+- **Sanitização de inputs** com lib/security
+- **Rate limiting** no client
+- **Token management** seguro (memória + sessionStorage)
+- **XSS prevention** em inputs
+- **RLS policies** preparadas para backend
+
+### Performance
+
+- **Code Splitting**: Lazy loading de páginas
+- **React Query Cache**: Evita refetch desnecessário
+- **Memoization**: `useMemo`, `useCallback` estratégicos
+- **Debounce/Throttle**: Em buscas e filtros
+
+### Acessibilidade (a11y)
+
+- Componentes shadcn/ui com ARIA
+- Navegação por teclado funcional
+- Contraste adequado em dark/light mode
+- Labels em todos os formulários
+- Focus management em modais
+
+---
+
+## 📁 Estrutura do Projeto
 
 ```
 src/
-├── components/
-│   ├── dashboards/
-│   │   ├── DashboardAdmin.tsx
-│   │   ├── DashboardConferente.tsx
-│   │   └── DashboardVendedor.tsx
-│   ├── ui/                        # Componentes shadcn/ui
-│   ├── AppSidebar.tsx
-│   ├── BonusProgress.tsx
-│   ├── CountdownTimer.tsx
-│   ├── DataTable.tsx
-│   ├── EmptyState.tsx
-│   ├── GaugeChart.tsx
-│   ├── MoneyInput.tsx
-│   ├── PageHeader.tsx
-│   ├── RoleGuard.tsx
-│   ├── RoleSwitcher.tsx
-│   ├── StatCard.tsx
-│   └── StatusBadge.tsx
-├── contexts/
-│   └── AuthContext.tsx
-├── data/
-│   └── mockData.ts
+├── components/              # Componentes reutilizáveis
+│   ├── auth/               # GuestRoute, exports
+│   ├── crud/               # ConfirmDialog, DataTable, FormDialog
+│   ├── dashboards/         # DashboardVendedor, Conferente, Admin
+│   ├── layout/             # MobileSidebar
+│   └── ui/                 # shadcn/ui (50+ componentes)
+├── contexts/               # AuthContext
 ├── hooks/
-│   ├── use-mobile.tsx
-│   └── use-toast.ts
-├── layouts/
-│   └── MainLayout.tsx
+│   ├── api/                # React Query hooks por domínio
+│   │   ├── use-auth.ts
+│   │   ├── use-dashboard.ts
+│   │   ├── use-cash.ts
+│   │   ├── use-cash-shifts.ts
+│   │   ├── use-cash-closings.ts
+│   │   ├── use-sales.ts
+│   │   ├── use-finance.ts
+│   │   ├── use-reports.ts
+│   │   ├── use-goals.ts
+│   │   ├── use-rules.ts
+│   │   ├── use-stores.ts
+│   │   ├── use-admin-stores.ts
+│   │   ├── use-admin-users.ts
+│   │   └── use-audit.ts
+│   ├── usePermissions.ts
+│   ├── useFilteredMenu.ts
+│   └── useSessionTimeout.ts
+├── layouts/                # MainLayout
+├── lib/
+│   ├── api/                # client, token, error-handler
+│   ├── config/             # menuConfig
+│   ├── permissions/        # RBAC schemas, constants
+│   ├── security/           # Sanitização
+│   └── utils/              # rateLimiter, helpers
 ├── pages/
-│   ├── conferencia/
-│   │   ├── Divergencias.tsx
-│   │   ├── HistoricoEnvelopes.tsx
-│   │   └── LancarTurno.tsx
-│   ├── config/
-│   │   ├── MetasMensais.tsx
-│   │   ├── RegrasComissao.tsx
-│   │   ├── TabelaBonus.tsx
-│   │   └── UsuariosLojas.tsx
-│   ├── faturamento/
-│   │   ├── ExtratoVendas.tsx
-│   │   ├── MeusBonus.tsx
-│   │   └── MinhasComissoes.tsx
-│   ├── gestao/
-│   │   ├── DesempenhoLojas.tsx
-│   │   ├── QuebraCaixa.tsx
-│   │   └── RankingVendas.tsx
+│   ├── conferencia/        # LancarTurno, Divergencias, Historico
+│   ├── config/             # Metas, Bonus, Regras, Usuarios, Auditoria
+│   ├── faturamento/        # Extrato, MeusBonus, MinhasComissoes
+│   ├── gestao/             # Ranking, Lojas, QuebraCaixa
 │   ├── Dashboard.tsx
-│   ├── Index.tsx
-│   └── NotFound.tsx
+│   ├── Login.tsx
+│   ├── ForgotPassword.tsx
+│   └── Unauthorized.tsx
+├── providers/              # QueryProvider
+├── schemas/                # Zod schemas (auth, cash)
+├── services/
+│   ├── admin/              # goals, rules, stores, users, audit
+│   ├── conference/         # cash-shifts, cash-closings
+│   ├── auth.service.ts
+│   ├── dashboard.service.ts
+│   ├── sales.service.ts
+│   ├── finance.service.ts
+│   ├── reports.service.ts
+│   └── stores.service.ts
 ├── types/
-│   └── index.ts
-├── App.tsx
-├── index.css
-└── main.tsx
+│   ├── api.ts              # Types gerais da API
+│   ├── conference.types.ts # Tipos de conferência
+│   ├── dashboard.types.ts  # Tipos de dashboard
+│   ├── admin.types.ts      # Tipos administrativos
+│   └── index.ts            # Re-exports
+└── data/
+    └── mockData.ts         # Dados mockados para desenvolvimento
 ```
 
 ---
 
-## Como Executar
+## 🚀 Como Rodar
 
 ### Pré-requisitos
 
-- Node.js 18+
+- Node.js 18+ ou Bun
 - npm, yarn ou bun
 
 ### Instalação
 
 ```bash
 # Clone o repositório
-git clone <YOUR_GIT_URL>
-cd <YOUR_PROJECT_NAME>
+git clone https://github.com/maiscapinhas/erp-verao-2026.git
+cd erp-verao-2026
 
 # Instale as dependências
 npm install
+# ou
+bun install
+```
 
+### Desenvolvimento
+
+```bash
 # Inicie o servidor de desenvolvimento
 npm run dev
+# ou
+bun dev
+
+# Acesse http://localhost:8080
+```
+
+### Build de Produção
+
+```bash
+# Build otimizado
+npm run build
+
+# Preview do build
+npm run preview
 ```
 
 ### Scripts Disponíveis
 
 | Script | Descrição |
 |--------|-----------|
-| `npm run dev` | Servidor de desenvolvimento (hot reload) |
-| `npm run build` | Build otimizado de produção |
-| `npm run preview` | Preview do build local |
-| `npm run lint` | Análise estática com ESLint |
+| `npm run dev` | Servidor de desenvolvimento |
+| `npm run build` | Build de produção |
+| `npm run preview` | Preview do build |
+| `npm run lint` | ESLint |
 
 ---
 
-## Sistema de Permissões (RBAC)
+## 📊 Status do Desenvolvimento
 
-| Role | Descrição | Módulos Acessíveis |
-|------|-----------|-------------------|
-| **Admin** | Gestão total do sistema | Dashboard, Conferência, Gestão, Configurações |
-| **Gerente** | Relatórios e supervisão | Dashboard, Gestão |
-| **Conferente** | Fechamento de caixa | Dashboard, Conferência |
-| **Vendedor** | Faturamento pessoal | Dashboard, Meu Faturamento |
+### Fases Concluídas
 
-### Role Switcher (Desenvolvimento)
+| Fase | Descrição | Status |
+|------|-----------|--------|
+| **1. MVP Dashboard** | Dashboards por role, componentes base | ✅ 100% |
+| **2. Meu Faturamento** | Extrato, Bônus, Comissões | ✅ 100% |
+| **3. Conferência de Caixa** | Lançamento, Divergências, Histórico | ✅ 100% |
+| **4. Gestão & Relatórios** | Ranking, Lojas, Quebra | ✅ 100% |
+| **5. Configurações Admin** | Metas, Bônus, Regras, Usuários, Auditoria | ✅ 100% |
 
-Use o seletor no canto inferior direito para alternar entre perfis e testar as diferentes visões.
+### Próximas Etapas
 
----
-
-## Status do Desenvolvimento
-
-### Fase 1 - MVP ✅
-
-- [x] Dashboards personalizados por role
-- [x] Módulo Faturamento completo (Vendedor)
-- [x] Módulo Conferência completo (Conferente)
-- [x] Sistema de autenticação mockado com RBAC
-
-### Fase 2 - Gestão ✅
-
-- [x] Ranking completo de vendedores com pódio
-- [x] Desempenho por loja com gráficos Recharts
-- [x] Relatório de quebra de caixa detalhado
-- [x] Histórico de envelopes
-
-### Fase 3 - Configurações ✅
-
-- [x] CRUD de Metas Mensais
-- [x] CRUD de Tabela de Bônus
-- [x] CRUD de Regras de Comissão
-- [x] Gestão de Usuários e Lojas
-
-### Fase 4 - Backend (Pendente)
-
-- [ ] Integração com Lovable Cloud (Supabase)
-- [ ] Autenticação real (email/senha)
-- [ ] API REST para persistência
-- [ ] Sincronização em tempo real
-
-### Fase 5 - Produção (Pendente)
-
-- [ ] Deploy em produção
-- [ ] Domínio customizado
-- [ ] PWA / Modo offline
-- [ ] Monitoramento e analytics
+| Fase | Descrição | Status |
+|------|-----------|--------|
+| **6. Backend Real** | Integração com API/Lovable Cloud | 🔄 Pendente |
+| **7. Animações** | Framer Motion, micro-interactions | 🔄 Pendente |
+| **8. PWA Avançado** | Push notifications, sync offline | 🔄 Pendente |
+| **9. Testes** | Vitest, Testing Library | 🔄 Pendente |
 
 ---
 
-## Sugestões de Endpoints para Backend
+## 📚 Documentação Adicional
 
-### Autenticação
+| Arquivo | Descrição |
+|---------|-----------|
+| [backend.md](./backend.md) | Especificação completa de 40+ endpoints |
+| [FRONTEND_IMPROVEMENTS.md](./FRONTEND_IMPROVEMENTS.md) | Roadmap de melhorias técnicas |
+| [docs/CONFERENCIA_CAIXA_BACKEND.md](./docs/CONFERENCIA_CAIXA_BACKEND.md) | Fluxo detalhado de conferência |
 
-```
-POST   /auth/login                    # Login com email/senha
-POST   /auth/logout                   # Logout
-POST   /auth/refresh                  # Refresh token
-GET    /auth/me                       # Dados do usuário logado
-POST   /auth/forgot-password          # Solicitar reset de senha
-POST   /auth/reset-password           # Resetar senha
-```
+---
 
-### Lojas
+## 🎨 Design System
 
-```
-GET    /lojas                         # Listar todas as lojas
-GET    /lojas/:id                     # Detalhes de uma loja
-POST   /lojas                         # Criar loja
-PUT    /lojas/:id                     # Atualizar loja
-DELETE /lojas/:id                     # Desativar loja
-GET    /lojas/:id/vendedores          # Vendedores da loja
-GET    /lojas/:id/desempenho          # Métricas de desempenho
-```
+### Paleta de Cores
 
-### Usuários
-
-```
-GET    /usuarios                      # Listar usuários (com filtros)
-GET    /usuarios/:id                  # Detalhes do usuário
-POST   /usuarios                      # Criar usuário
-PUT    /usuarios/:id                  # Atualizar usuário
-DELETE /usuarios/:id                  # Desativar usuário
-PUT    /usuarios/:id/role             # Alterar role
-GET    /usuarios/aniversariantes      # Aniversariantes do mês
-```
-
-### Turnos / Fechamentos
-
-```
-GET    /turnos                        # Listar turnos (com filtros: data, loja, vendedor, status)
-GET    /turnos/:id                    # Detalhes do turno
-POST   /turnos                        # Criar/registrar turno
-PUT    /turnos/:id                    # Atualizar turno (conferência)
-PUT    /turnos/:id/validar            # Validar e fechar turno
-GET    /turnos/pendentes              # Turnos pendentes de conferência
-GET    /turnos/divergentes            # Turnos com divergência
-```
-
-### Metas
-
-```
-GET    /metas                         # Listar metas (filtro por mês/ano/loja)
-GET    /metas/:id                     # Detalhes da meta
-POST   /metas                         # Criar meta
-PUT    /metas/:id                     # Atualizar meta
-DELETE /metas/:id                     # Remover meta
-POST   /metas/:id/distribuir          # Distribuir meta entre vendedores
-```
-
-### Bônus
-
-```
-GET    /bonus/tabela                  # Listar faixas de bônus
-POST   /bonus/tabela                  # Criar faixa
-PUT    /bonus/tabela/:id              # Atualizar faixa
-DELETE /bonus/tabela/:id              # Remover faixa
-GET    /bonus/vendedor/:id            # Bônus do vendedor (por período)
-GET    /bonus/calcular                # Calcular bônus (simulação)
-```
-
-### Comissões
-
-```
-GET    /comissoes/regras              # Listar regras de comissão
-POST   /comissoes/regras              # Criar regra
-PUT    /comissoes/regras/:id          # Atualizar regra
-DELETE /comissoes/regras/:id          # Remover regra
-GET    /comissoes/vendedor/:id        # Comissão do vendedor (por período)
-GET    /comissoes/projecao/:id        # Projeção de comissão
-```
-
-### Dashboard / Relatórios
-
-```
-GET    /dashboard/vendedor            # Dados do dashboard vendedor
-GET    /dashboard/conferente          # Dados do dashboard conferente
-GET    /dashboard/admin               # Dados do dashboard admin
-GET    /relatorios/ranking            # Ranking de vendedores
-GET    /relatorios/desempenho-lojas   # Desempenho comparativo de lojas
-GET    /relatorios/quebra-caixa       # Relatório de quebra de caixa
-GET    /relatorios/historico          # Histórico de fechamentos
-```
-
-### Estrutura de Resposta Sugerida
-
-```json
-{
-  "success": true,
-  "data": { ... },
-  "pagination": {
-    "page": 1,
-    "perPage": 20,
-    "total": 150,
-    "totalPages": 8
-  },
-  "meta": {
-    "timestamp": "2026-01-08T12:00:00Z"
-  }
-}
-```
-
-### Estrutura de Erro
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Justificativa é obrigatória para divergências",
-    "details": [...]
-  }
+```css
+:root {
+  /* Backgrounds */
+  --background: 222 47% 11%;        /* #151521 */
+  --foreground: 0 0% 95%;           /* #F2F2F2 */
+  
+  /* Primary (Roxo Vibrante) */
+  --primary: 250 89% 65%;           /* #8B5CF6 */
+  --primary-foreground: 0 0% 100%;
+  
+  /* Secondary (Ciano/Turquesa) */
+  --secondary: 168 76% 42%;         /* #1ABC9C */
+  
+  /* Semáforo */
+  --success: 142 76% 36%;           /* Verde */
+  --warning: 38 92% 50%;            /* Amarelo */
+  --destructive: 0 84% 60%;         /* Vermelho */
 }
 ```
 
 ---
 
-## Sugestões de Melhorias no Frontend
-
-### Alta Prioridade
-
-| Melhoria | Descrição | Impacto | Complexidade |
-|----------|-----------|---------|--------------|
-| **Animações com Framer Motion** | Transições de página, micro-interações, animação do pódio | Alto | Média |
-| **Modo Escuro** | Tema dark seguindo a paleta da marca | Médio | Baixa |
-| **Notificações Push** | Alertas de metas, divergências pendentes | Alto | Média |
-| **Exportação PDF/Excel** | Relatórios exportáveis em todos os módulos | Alto | Média |
-| **Filtros Persistentes** | Salvar preferências de filtros por usuário | Médio | Baixa |
-
-### Média Prioridade
-
-| Melhoria | Descrição | Impacto | Complexidade |
-|----------|-----------|---------|--------------|
-| **Tour Guiado (Onboarding)** | Tutorial interativo para novos usuários | Médio | Média |
-| **Gráficos Comparativos** | Comparativo mês atual vs anterior em todas as telas | Alto | Média |
-| **Shortcuts de Teclado** | Atalhos para ações frequentes | Baixo | Baixa |
-| **Drag & Drop** | Reordenação de cards no dashboard | Baixo | Média |
-| **Busca Global** | Buscar vendedores, lojas, turnos de qualquer lugar | Médio | Média |
-
-### Baixa Prioridade (Nice to Have)
-
-| Melhoria | Descrição | Impacto | Complexidade |
-|----------|-----------|---------|--------------|
-| **Dashboard Customizável** | Widgets arrastáveis por usuário | Médio | Alta |
-| **Notificações In-App** | Centro de notificações com histórico | Médio | Média |
-| **Modo Apresentação** | Tela cheia para TVs/monitores em lojas | Baixo | Baixa |
-| **Chat Interno** | Comunicação entre gerentes e vendedores | Médio | Alta |
-| **Gamificação Avançada** | Conquistas, níveis, badges | Médio | Alta |
-
-### Performance
-
-| Melhoria | Descrição | Impacto | Complexidade |
-|----------|-----------|---------|--------------|
-| **Lazy Loading de Rotas** | Code splitting por módulo | Médio | Baixa |
-| **Virtualização de Listas** | Para rankings e históricos grandes | Médio | Média |
-| **Cache Otimizado (TanStack)** | Stale-while-revalidate em todos os endpoints | Alto | Média |
-| **PWA Completo** | Service worker, offline mode, instalável | Alto | Alta |
-| **Prefetch de Dados** | Carregar próximas páginas antecipadamente | Médio | Baixa |
-
-### Acessibilidade
-
-| Melhoria | Descrição | Impacto | Complexidade |
-|----------|-----------|---------|--------------|
-| **Skip Links** | Navegação rápida para conteúdo principal | Baixo | Baixa |
-| **Focus Management** | Gerenciamento de foco em modais/navegação | Médio | Média |
-| **Screen Reader Support** | ARIA labels e live regions | Médio | Média |
-| **Alto Contraste** | Modo de alto contraste para acessibilidade visual | Baixo | Baixa |
-
-### Integrações Futuras
-
-| Integração | Descrição | Impacto | Complexidade |
-|------------|-----------|---------|--------------|
-| **WhatsApp Business API** | Alertas e relatórios via WhatsApp | Alto | Alta |
-| **Integração com PDV** | Sincronização automática de vendas | Crítico | Alta |
-| **API para App Mobile** | Endpoints otimizados para React Native | Alto | Alta |
-| **Webhooks** | Eventos para automações externas (Zapier, n8n) | Médio | Média |
-| **Google Sheets** | Exportação automática para planilhas | Médio | Média |
-
----
-
-## Contribuição
+## 🤝 Contribuição
 
 1. Fork o repositório
 2. Crie uma branch: `git checkout -b feature/minha-feature`
-3. Commit: `git commit -m 'feat: adiciona minha feature'`
-4. Push: `git push origin feature/minha-feature`
+3. Commit suas mudanças: `git commit -m 'feat: adiciona nova feature'`
+4. Push para a branch: `git push origin feature/minha-feature`
 5. Abra um Pull Request
 
+### Padrão de Commits
+
+- `feat:` Nova funcionalidade
+- `fix:` Correção de bug
+- `docs:` Documentação
+- `style:` Formatação
+- `refactor:` Refatoração
+- `test:` Testes
+- `chore:` Manutenção
+
 ---
 
-## Licença
+## 📝 Licença
 
-Este projeto é proprietário da rede **Mais Capinhas**.
+Este projeto é **proprietário** da rede Mais Capinhas. Todos os direitos reservados.
 
 ---
 
-<p align="center">
-  Desenvolvido com Lovable
-</p>
+<div align="center">
+
+Desenvolvido com 💜 para **Mais Capinhas**
+
+**Verão 2026**
+
+</div>

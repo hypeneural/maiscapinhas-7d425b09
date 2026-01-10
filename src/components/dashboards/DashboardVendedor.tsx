@@ -223,11 +223,7 @@ export const DashboardVendedor: React.FC = () => {
         <StatCard
           title="Comissão Atual"
           value={`R$ ${monthly_commission.current_commission_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          subtitle={
-            <span className="flex items-center gap-1">
-              Tier <Badge className={cn('text-[10px] h-4', tierBadgeColor)}>{monthly_commission.current_tier}%</Badge>
-            </span>
-          }
+          subtitle={`Tier ${monthly_commission.current_tier}%`}
           icon={TrendingUp}
           variant="primary"
         />
