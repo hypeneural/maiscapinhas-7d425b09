@@ -2,6 +2,7 @@
  * Dashboard Page
  * 
  * Renders the appropriate dashboard based on user's current role.
+ * Super Admins always see the Admin dashboard.
  */
 
 import React from 'react';
@@ -12,7 +13,10 @@ import { DashboardAdmin } from '@/components/dashboards/DashboardAdmin';
 import { Loader2 } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
-  const { currentRole, isLoading } = usePermissions();
+  const { currentRole, isLoading, isSuperAdmin } = usePermissions();
+
+  // Debug: log to see what values we're getting
+  console.log('[Dashboard] isSuperAdmin:', isSuperAdmin, 'currentRole:', currentRole, 'isLoading:', isLoading);
 
   if (isLoading) {
     return (
@@ -20,6 +24,11 @@ const Dashboard: React.FC = () => {
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
+  }
+
+  // Super Admin always sees the Admin dashboard
+  if (isSuperAdmin) {
+    return <DashboardAdmin />;
   }
 
   switch (currentRole) {
