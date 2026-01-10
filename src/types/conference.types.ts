@@ -87,6 +87,7 @@ export interface CashClosingLine {
   system_value: number;
   real_value: number;
   diff_value: number;
+  justification_text?: string | null;
   created_at: string;
   updated_at: string;
 }
