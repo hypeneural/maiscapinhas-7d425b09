@@ -9,15 +9,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft, Save, Loader2, User, Mail, Lock, Phone, Instagram,
-    Wallet, Calendar, Briefcase, CreditCard, Crown, CheckCircle, Upload, Trash2
+    Wallet, Calendar, Briefcase, CreditCard, Crown, CheckCircle, Upload, Trash2,
+    Home, MapPin, Flag, Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
 import { PageHeader } from '@/components/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -48,6 +49,37 @@ function formatPhone(value: string): string {
     return value.replace(/\D/g, '').slice(0, 11);
 }
 
+function formatCEP(value: string): string {
+    return value.replace(/\D/g, '').slice(0, 8);
+}
+
+// ViaCEP API
+interface ViaCEPResponse {
+    cep: string;
+    logradouro: string;
+    complemento: string;
+    bairro: string;
+    localidade: string;
+    uf: string;
+    erro?: boolean;
+}
+
+async function fetchAddressByCep(cep: string): Promise<ViaCEPResponse | null> {
+    const cleanCep = cep.replace(/\D/g, '');
+    if (cleanCep.length !== 8) return null;
+
+    try {
+        const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const data: ViaCEPResponse = await response.json();
+        if (data.erro) return null;
+        return data;
+    } catch {
+        return null;
+    }
+}
+
+const UF_OPTIONS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
+
 // ============================================================
 // Types
 // ============================================================
@@ -64,6 +96,14 @@ interface UserFormState {
     whatsapp: string;
     instagram: string;
     pix_key: string;
+    // Address
+    zip_code: string;
+    street: string;
+    number: string;
+    complement: string;
+    neighborhood: string;
+    city: string;
+    state: string;
 }
 
 const initialForm: UserFormState = {
@@ -78,6 +118,14 @@ const initialForm: UserFormState = {
     whatsapp: '',
     instagram: '',
     pix_key: '',
+    // Address
+    zip_code: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
 };
 
 // ============================================================
@@ -97,6 +145,7 @@ const UserForm: React.FC = () => {
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const [loadingCep, setLoadingCep] = useState(false);
 
     // Queries and mutations
     const { data: userData, isLoading: isLoadingUser } = useAdminUser(userId || 0);
@@ -120,12 +169,43 @@ const UserForm: React.FC = () => {
                 whatsapp: userData.whatsapp || '',
                 instagram: userData.instagram || '',
                 pix_key: userData.pix_key || '',
+                // Address
+                zip_code: userData.zip_code || '',
+                street: userData.street || '',
+                number: userData.number || '',
+                complement: userData.complement || '',
+                neighborhood: userData.neighborhood || '',
+                city: userData.city || '',
+                state: userData.state || '',
             });
             if (userData.avatar_url) {
                 setAvatarPreview(userData.avatar_url);
             }
         }
     }, [userData]);
+
+    // Handle CEP lookup
+    const handleCepBlur = async () => {
+        const cep = form.zip_code.replace(/\D/g, '');
+        if (cep.length !== 8) return;
+
+        setLoadingCep(true);
+        const address = await fetchAddressByCep(cep);
+        setLoadingCep(false);
+
+        if (address) {
+            setForm(f => ({
+                ...f,
+                street: address.logradouro || f.street,
+                neighborhood: address.bairro || f.neighborhood,
+                city: address.localidade || f.city,
+                state: address.uf || f.state,
+            }));
+            toast.success('Endereço preenchido automaticamente!');
+        } else if (cep.length === 8) {
+            toast.error('CEP não encontrado');
+        }
+    };
 
     // Validation
     const validateForm = (): boolean => {
@@ -169,7 +249,7 @@ const UserForm: React.FC = () => {
         if (!validateForm()) return;
 
         try {
-            const userData = {
+            const userPayload = {
                 name: form.name,
                 email: form.email,
                 password: form.password || undefined,
@@ -180,15 +260,23 @@ const UserForm: React.FC = () => {
                 whatsapp: form.whatsapp || undefined,
                 instagram: form.instagram || undefined,
                 pix_key: form.pix_key || undefined,
+                // Address
+                zip_code: form.zip_code || undefined,
+                street: form.street || undefined,
+                number: form.number || undefined,
+                complement: form.complement || undefined,
+                neighborhood: form.neighborhood || undefined,
+                city: form.city || undefined,
+                state: form.state || undefined,
                 ...(canManageSuperAdmins && { is_super_admin: form.is_super_admin }),
             };
 
             let savedUserId = userId;
 
             if (isEditing && userId) {
-                await updateMutation.mutateAsync({ id: userId, data: userData });
+                await updateMutation.mutateAsync({ id: userId, data: userPayload });
             } else {
-                const result = await createMutation.mutateAsync(userData as any);
+                const result = await createMutation.mutateAsync(userPayload as any);
                 savedUserId = result.id;
             }
 
@@ -433,6 +521,132 @@ const UserForm: React.FC = () => {
                                     placeholder="CPF, Email, Telefone ou Chave aleatória"
                                     maxLength={255}
                                 />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Endereço */}
+                    <Card>
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Home className="h-5 w-5 text-primary" />
+                                Endereço
+                            </CardTitle>
+                            <CardDescription>
+                                Preencha o CEP para auto-completar
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-4 sm:grid-cols-2">
+                            <div className="sm:col-span-2">
+                                <Label className="flex items-center gap-2">
+                                    <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                                    CEP
+                                </Label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={form.zip_code}
+                                        onChange={(e) => setForm(f => ({ ...f, zip_code: formatCEP(e.target.value) }))}
+                                        onBlur={handleCepBlur}
+                                        placeholder="88220000"
+                                        maxLength={8}
+                                        className="flex-1"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={handleCepBlur}
+                                        disabled={loadingCep || form.zip_code.length < 8}
+                                    >
+                                        {loadingCep ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Search className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="sm:col-span-2">
+                                <Label className="flex items-center gap-2">
+                                    <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                                    Logradouro
+                                </Label>
+                                <Input
+                                    value={form.street}
+                                    onChange={(e) => setForm(f => ({ ...f, street: e.target.value }))}
+                                    placeholder="Rua das Flores"
+                                    maxLength={255}
+                                />
+                            </div>
+
+                            <div>
+                                <Label className="flex items-center gap-2">
+                                    <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                                    Número
+                                </Label>
+                                <Input
+                                    value={form.number}
+                                    onChange={(e) => setForm(f => ({ ...f, number: e.target.value }))}
+                                    placeholder="123"
+                                    maxLength={20}
+                                />
+                            </div>
+
+                            <div>
+                                <Label className="flex items-center gap-2">
+                                    <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                                    Complemento
+                                </Label>
+                                <Input
+                                    value={form.complement}
+                                    onChange={(e) => setForm(f => ({ ...f, complement: e.target.value }))}
+                                    placeholder="Apto 45"
+                                    maxLength={255}
+                                />
+                            </div>
+
+                            <div>
+                                <Label className="flex items-center gap-2">
+                                    <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                                    Bairro
+                                </Label>
+                                <Input
+                                    value={form.neighborhood}
+                                    onChange={(e) => setForm(f => ({ ...f, neighborhood: e.target.value }))}
+                                    placeholder="Centro"
+                                    maxLength={100}
+                                />
+                            </div>
+
+                            <div>
+                                <Label className="flex items-center gap-2">
+                                    <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                                    Cidade
+                                </Label>
+                                <Input
+                                    value={form.city}
+                                    onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))}
+                                    placeholder="Itapema"
+                                    maxLength={255}
+                                />
+                            </div>
+
+                            <div>
+                                <Label className="flex items-center gap-2">
+                                    <Flag className="h-3.5 w-3.5 text-muted-foreground" />
+                                    UF
+                                </Label>
+                                <Select value={form.state} onValueChange={(v) => setForm(f => ({ ...f, state: v }))}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="UF" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {UF_OPTIONS.map(uf => (
+                                            <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </CardContent>
                     </Card>

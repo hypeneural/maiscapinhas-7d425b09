@@ -27,6 +27,16 @@ export interface AdminUserResponse {
     instagram: string | null;
     cpf: string | null;             // "123.456.789-00"
     pix_key: string | null;
+
+    // Address
+    zip_code: string | null;        // max 8, only digits
+    street: string | null;          // max 255
+    number: string | null;          // max 20
+    complement: string | null;      // max 255
+    neighborhood: string | null;    // max 100
+    city: string | null;            // max 255
+    state: string | null;           // max 2 (UF)
+
     created_at: string;
     updated_at: string;
     stores: UserStoreBinding[];
@@ -60,6 +70,15 @@ export interface CreateUserRequest {
     cpf?: string;               // max 14, "123.456.789-00"
     pix_key?: string;           // max 255
 
+    // Address
+    zip_code?: string;          // max 8
+    street?: string;            // max 255
+    number?: string;            // max 20
+    complement?: string;        // max 255
+    neighborhood?: string;      // max 100
+    city?: string;              // max 255
+    state?: string;             // max 2 (UF)
+
     // Store bindings
     stores?: Array<{
         store_id: number;
@@ -82,6 +101,15 @@ export interface UpdateUserRequest {
     instagram?: string | null;
     cpf?: string | null;
     pix_key?: string | null;
+
+    // Address
+    zip_code?: string | null;
+    street?: string | null;
+    number?: string | null;
+    complement?: string | null;
+    neighborhood?: string | null;
+    city?: string | null;
+    state?: string | null;
 }
 
 /**
