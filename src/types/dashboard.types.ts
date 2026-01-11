@@ -271,6 +271,8 @@ export interface StorePerformance {
 export interface ConsolidatedStore {
     store_id: number;
     store_name: string;
+    days_elapsed?: number;
+    days_total?: number;
     sales: {
         current_amount: number;
         goal_amount: number;
