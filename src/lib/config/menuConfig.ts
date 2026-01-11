@@ -150,6 +150,13 @@ export const menuSections: MenuSection[] = [
                 path: '/gestao/quebra',
                 permissions: ['reports:cash_integrity'],
             },
+            {
+                id: 'kpis-colaboradores',
+                label: 'KPIs de Colaboradores',
+                icon: Users,
+                path: '/gestao/kpis-colaboradores',
+                permissions: ['reports:user_kpis'],
+            },
         ],
     },
 

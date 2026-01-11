@@ -61,6 +61,7 @@ export type Permission =
     | 'reports:store_performance'
     | 'reports:cash_integrity'
     | 'reports:consolidated'
+    | 'reports:user_kpis'
     // Admin
     | 'users:view'
     | 'users:manage'
@@ -91,6 +92,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         'reports:store_performance',
         'reports:cash_integrity',
         'reports:consolidated',
+        'reports:user_kpis',
         'users:view',
         'users:manage',
         'stores:view',
@@ -114,6 +116,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         'ranking:view',
         'reports:store_performance',
         'reports:cash_integrity',
+        'reports:user_kpis',
     ],
     conferente: [
         'dashboard:view',

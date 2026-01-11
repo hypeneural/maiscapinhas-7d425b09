@@ -12,7 +12,9 @@ import type {
     BirthdayEntry,
     StorePerformance,
     ConsolidatedPerformanceResponse,
-    CashIntegrityData
+    CashIntegrityData,
+    UserKpisFilters,
+    UserKpisResponse
 } from '@/types/api';
 
 // ============================================================
@@ -105,3 +107,18 @@ export async function getBirthdays(
     const response = await apiGet<ApiResponse<BirthdayEntry[]>>('/users/birthdays', params);
     return response.data;
 }
+
+// ============================================================
+// User KPIs
+// ============================================================
+
+/**
+ * Get user KPIs with optional filters
+ * Used by /gestao/kpis-colaboradores page
+ * Note: This endpoint returns JSON directly (no ApiResponse wrapper)
+ */
+export async function getUserKpis(filters: UserKpisFilters = {}): Promise<UserKpisResponse> {
+    const response = await apiGet<UserKpisResponse>('/users/kpis', filters);
+    return response;
+}
+

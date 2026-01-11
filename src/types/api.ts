@@ -780,3 +780,74 @@ export interface AuditLog {
     ip_address: string;
     created_at: string;
 }
+
+// ============================================================
+// User KPIs
+// ============================================================
+
+/**
+ * User KPIs filter parameters
+ */
+export interface UserKpisFilters {
+    active?: '0' | '1' | 'all';
+    state?: string;
+    city?: string;
+    date_from?: string;  // YYYY-MM-DD
+    date_to?: string;    // YYYY-MM-DD
+}
+
+/**
+ * User KPIs response from /api/v1/users/kpis
+ */
+export interface UserKpisResponse {
+    filters: {
+        active: number | 'all';
+        state: string | null;
+        city: string | null;
+        date_from: string | null;
+        date_to: string | null;
+    };
+
+    totals: {
+        users_total: number;
+        active_total: number;
+        inactive_total: number;
+        with_birth_date_total: number;
+        with_hire_date_total: number;
+        without_city_total: number;
+    };
+
+    age: {
+        avg_age_years: number | null;
+        youngest_age_years: number | null;
+        youngest_birth_date: string | null;
+        oldest_age_years: number | null;
+        oldest_birth_date: string | null;
+        age_population_total: number;
+    };
+
+    tenure: {
+        avg_tenure_days: number | null;
+        avg_tenure_months: number | null;
+        longest_tenure_days: number | null;
+        longest_hire_date: string | null;
+        newest_tenure_days: number | null;
+        newest_hire_date: string | null;
+        tenure_population_total: number;
+    };
+
+    distribution: {
+        cities_total_distinct: number;
+        top_city: {
+            city: string;
+            qty: number;
+            pct: number;
+        } | null;
+        by_city: Array<{
+            city: string;
+            qty: number;
+            pct: number;
+        }>;
+    };
+}
+

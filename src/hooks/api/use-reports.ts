@@ -10,9 +10,10 @@ import {
     getConsolidatedPerformance,
     getStorePerformance,
     getCashIntegrity,
-    getBirthdays
+    getBirthdays,
+    getUserKpis
 } from '@/services/reports.service';
-import type { RankingFilters } from '@/types/api';
+import type { RankingFilters, UserKpisFilters } from '@/types/api';
 
 /**
  * Query key factory for reports queries
@@ -27,6 +28,8 @@ export const reportsKeys = {
         [...reportsKeys.all, 'cash-integrity', storeId, month] as const,
     birthdays: (month?: number, storeId?: number) =>
         [...reportsKeys.all, 'birthdays', month, storeId] as const,
+    userKpis: (filters?: UserKpisFilters) =>
+        [...reportsKeys.all, 'user-kpis', filters] as const,
 };
 
 /**
@@ -95,3 +98,17 @@ export function useBirthdays(month?: number, storeId?: number) {
         staleTime: 1000 * 60 * 30, // Birthdays don't change often
     });
 }
+
+/**
+ * Hook to get user KPIs
+ * Used by /gestao/kpis-colaboradores page
+ * @param filters - Optional filters: active, state, city, date_from, date_to
+ */
+export function useUserKpis(filters: UserKpisFilters = {}) {
+    return useQuery({
+        queryKey: reportsKeys.userKpis(filters),
+        queryFn: () => getUserKpis(filters),
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+}
+

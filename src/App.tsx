@@ -24,6 +24,7 @@ const MinhasComissoes = lazy(() => import("@/pages/faturamento/MinhasComissoes")
 const RankingVendas = lazy(() => import("@/pages/gestao/RankingVendas"));
 const DesempenhoLojas = lazy(() => import("@/pages/gestao/DesempenhoLojas"));
 const QuebraCaixa = lazy(() => import("@/pages/gestao/QuebraCaixa"));
+const KpisColaboradores = lazy(() => import("@/pages/gestao/KpisColaboradores"));
 const MetasMensais = lazy(() => import("@/pages/config/MetasMensais"));
 const TabelaBonus = lazy(() => import("@/pages/config/TabelaBonus"));
 const RegrasComissao = lazy(() => import("@/pages/config/RegrasComissao"));
@@ -113,6 +114,11 @@ const App = () => (
                 <Route path="/gestao/quebra" element={
                   <ProtectedRoute requiredRoles={['gerente', 'admin']}>
                     <QuebraCaixa />
+                  </ProtectedRoute>
+                } />
+                <Route path="/gestao/kpis-colaboradores" element={
+                  <ProtectedRoute requiredRoles={['gerente', 'admin']}>
+                    <KpisColaboradores />
                   </ProtectedRoute>
                 } />
 
