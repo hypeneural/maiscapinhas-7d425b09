@@ -67,5 +67,5 @@ export async function getStoreSellers(storeId: number): Promise<StoreSeller[]> {
  * Update store photo
  */
 export async function updateStorePhoto(storeId: number, photo: File): Promise<Store> {
-    return apiUpload<Store>(`/stores/${storeId}/photo`, photo, 'photo', 'PUT');
+    return apiUpload<Store>(`/stores/${storeId}/photo`, photo, 'photo');
 }
