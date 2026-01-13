@@ -18,6 +18,9 @@ import {
     DollarSign,
     Image,
     Send,
+    ShoppingCart,
+    AlertCircle,
+    Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,11 +36,19 @@ import {
     useBulkCapaStatus,
     useSendToProduction,
 } from '@/hooks/api/use-capas';
+import { useAddToCart } from '@/hooks/api/use-producao';
 import { useAuth } from '@/contexts/AuthContext';
 import { getStatusColorClasses, CAPA_STATUS_OPTIONS } from '@/lib/constants/status.constants';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { CapaPersonalizada, CapaFilters } from '@/types/capas.types';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { CapasNavTabs } from '@/components/producao';
 
 const Capas: React.FC = () => {
     const navigate = useNavigate();
@@ -60,8 +71,19 @@ const Capas: React.FC = () => {
     const deleteMutation = useDeleteCapa();
     const bulkStatusMutation = useBulkCapaStatus();
     const sendToProductionMutation = useSendToProduction();
+    const addToCartMutation = useAddToCart();
 
     const capas = capasData?.data || [];
+
+    // Check if capa is eligible for cart (status=1 "Encomenda Solicitada" and has photo)
+    const isEligibleForCart = (capa: CapaPersonalizada) => {
+        return capa.status === 1 && !!capa.photo_url;
+    };
+
+    // Count eligible items in current selection
+    const eligibleForCart = capas
+        .filter((c) => selectedIds.includes(c.id) && isEligibleForCart(c))
+        .length;
 
     // Selection handlers
     const handleSelectAll = useCallback((checked: boolean) => {
@@ -94,6 +116,14 @@ const Capas: React.FC = () => {
         });
     };
 
+    const handleAddToCart = async (ids: number[]) => {
+        const result = await addToCartMutation.mutateAsync(ids);
+        return {
+            added: result.data.added_count,
+            blocked: result.data.blocked_count,
+        };
+    };
+
     const formatCurrency = (value: number | null) => {
         if (value === null) return '-';
         return new Intl.NumberFormat('pt-BR', {
@@ -114,15 +144,51 @@ const Capas: React.FC = () => {
                             onCheckedChange={handleSelectAll}
                         />
                     ) as unknown as string,
-                    render: (_: unknown, capa: CapaPersonalizada) => (
-                        <Checkbox
-                            checked={selectedIds.includes(capa.id)}
-                            onCheckedChange={(checked) =>
-                                handleSelectOne(capa.id, checked as boolean)
-                            }
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                    ),
+                    render: (_: unknown, capa: CapaPersonalizada) => {
+                        const eligible = isEligibleForCart(capa);
+                        const isSelected = selectedIds.includes(capa.id);
+
+                        return (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="relative">
+                                            <Checkbox
+                                                checked={isSelected}
+                                                onCheckedChange={(checked) =>
+                                                    handleSelectOne(capa.id, checked as boolean)
+                                                }
+                                                onClick={(e) => e.stopPropagation()}
+                                                className={cn(
+                                                    'transition-all',
+                                                    isSelected && !eligible && 'border-amber-500 data-[state=checked]:bg-amber-500'
+                                                )}
+                                            />
+                                            {isSelected && !eligible && (
+                                                <div className="absolute -top-1 -right-1">
+                                                    <AlertCircle className="h-3 w-3 text-amber-500" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </TooltipTrigger>
+                                    {!eligible && (
+                                        <TooltipContent side="right" className="max-w-xs">
+                                            <div className="flex items-center gap-2">
+                                                <Info className="h-4 w-4 text-amber-500" />
+                                                <span>
+                                                    {!capa.photo_url
+                                                        ? 'Sem foto - não pode ser adicionada ao carrinho'
+                                                        : capa.status !== 1
+                                                            ? `Status "${capa.status_label}" - não pode ser adicionada ao carrinho`
+                                                            : 'Não elegível para carrinho'}
+                                                </span>
+                                            </div>
+                                        </TooltipContent>
+                                    )}
+                                </Tooltip>
+                            </TooltipProvider>
+                        );
+                    },
                 } as Column<CapaPersonalizada>,
             ]
             : []),
@@ -262,6 +328,8 @@ const Capas: React.FC = () => {
                 icon={Palette}
             />
 
+            <CapasNavTabs />
+
             <div className="flex justify-between items-center">
                 <div />
                 <Button onClick={() => navigate('/capas/novo')} className="gap-2">
@@ -304,6 +372,8 @@ const Capas: React.FC = () => {
                     onClearSelection={() => setSelectedIds([])}
                     onStatusChange={handleBulkStatusChange}
                     onSendToProduction={handleSendToProduction}
+                    onAddToCart={handleAddToCart}
+                    eligibleForCart={eligibleForCart}
                     statusOptions={CAPA_STATUS_OPTIONS}
                     type="capa"
                 />

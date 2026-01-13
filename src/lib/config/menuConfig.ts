@@ -24,6 +24,8 @@ import {
     Smartphone,
     Megaphone,
     MessageSquare,
+    Factory,
+    ShoppingCart,
     type LucideIcon,
 } from 'lucide-react';
 import type { Role, Permission } from '@/lib/permissions';
@@ -35,6 +37,7 @@ export interface MenuItem {
     path: string;
     permissions?: Permission[];
     roles?: Role[];
+    excludeRoles?: Role[];
     minRole?: Role;
     children?: MenuItem[];
 }
@@ -45,6 +48,7 @@ export interface MenuSection {
     items: MenuItem[];
     permissions?: Permission[];
     roles?: Role[];
+    excludeRoles?: Role[];
     minRole?: Role;
 }
 
@@ -52,10 +56,11 @@ export interface MenuSection {
  * Complete menu configuration
  */
 export const menuSections: MenuSection[] = [
-    // Dashboard - Everyone
+    // Dashboard - Everyone except fabrica
     {
         id: 'principal',
         title: 'Principal',
+        excludeRoles: ['fabrica'],
         items: [
             {
                 id: 'dashboard',
@@ -73,10 +78,11 @@ export const menuSections: MenuSection[] = [
         ],
     },
 
-    // Clientes, Pedidos, Capas - Everyone
+    // Clientes, Pedidos, Capas - Everyone except fabrica
     {
         id: 'vendas',
         title: 'Vendas',
+        excludeRoles: ['fabrica'],
         items: [
             {
                 id: 'clientes',
@@ -262,19 +268,42 @@ export const menuSections: MenuSection[] = [
             },
         ],
     },
+
+    // Fábrica - Factory role + Admin
+    {
+        id: 'fabrica',
+        title: 'Portal Fábrica',
+        roles: ['fabrica', 'admin'],
+        items: [
+            {
+                id: 'fabrica-pedidos',
+                label: 'Pedidos da Fábrica',
+                icon: Factory,
+                path: '/fabrica/pedidos',
+            },
+        ],
+    },
 ];
 
 /**
  * Filter menu sections based on user permissions
+ * @param isSuperAdmin - If true, bypasses excludeRoles check (super admin sees everything)
  */
 export function filterMenuSections(
     sections: MenuSection[],
     hasPermission: (p: Permission) => boolean,
     hasRole: (r: Role) => boolean,
-    hasMinRole: (r: Role) => boolean
+    hasMinRole: (r: Role) => boolean,
+    isSuperAdmin: boolean = false
 ): MenuSection[] {
     return sections
         .filter((section) => {
+            // Super admin bypasses excludeRoles - they see EVERYTHING
+            // For non-super admin, check excludeRoles
+            if (!isSuperAdmin && section.excludeRoles?.length) {
+                if (section.excludeRoles.some(hasRole)) return false;
+            }
+
             // Check section roles
             if (section.roles?.length) {
                 if (!section.roles.some(hasRole)) return false;
@@ -295,6 +324,11 @@ export function filterMenuSections(
         .map((section) => ({
             ...section,
             items: section.items.filter((item) => {
+                // Super admin bypasses excludeRoles for items too
+                if (!isSuperAdmin && item.excludeRoles?.length) {
+                    if (item.excludeRoles.some(hasRole)) return false;
+                }
+
                 // Check item roles
                 if (item.roles?.length) {
                     if (!item.roles.some(hasRole)) return false;

@@ -10,7 +10,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft, Save, Loader2, User, Mail, Lock, Phone, Instagram,
     Wallet, Calendar, Briefcase, CreditCard, Crown, CheckCircle, Upload, Trash2,
-    Home, MapPin, Flag, Search
+    Home, MapPin, Flag, Search, Factory, Store, Plus, X, Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,8 +30,27 @@ import {
     useUpdateUser,
     useUploadAvatar,
     useRemoveAvatar,
+    useBulkAddStores,
+    useBulkRemoveStores,
 } from '@/hooks/api/use-admin-users';
-import type { AdminUserResponse } from '@/types/admin.types';
+import { useAdminStores } from '@/hooks/api/use-admin-stores';
+import type { AdminUserResponse, GlobalRole, StoreRole, UserStoreBinding } from '@/types/admin.types';
+import { Badge } from '@/components/ui/badge';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { AddStoresToUserModal } from '@/components/admin/AddStoresToUserModal';
 
 // ============================================================
 // Helper Functions
@@ -90,6 +109,7 @@ interface UserFormState {
     password: string;
     active: boolean;
     is_super_admin: boolean;
+    has_fabrica_role: boolean;  // Global role: fabrica
     cpf: string;
     birth_date: string;
     hire_date: string;
@@ -112,6 +132,7 @@ const initialForm: UserFormState = {
     password: '',
     active: true,
     is_super_admin: false,
+    has_fabrica_role: false,
     cpf: '',
     birth_date: '',
     hire_date: '',
@@ -146,13 +167,39 @@ const UserForm: React.FC = () => {
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [loadingCep, setLoadingCep] = useState(false);
+    const [removingStoreId, setRemovingStoreId] = useState<number | null>(null);
+    const [addStoresModalOpen, setAddStoresModalOpen] = useState(false);
 
     // Queries and mutations
     const { data: userData, isLoading: isLoadingUser } = useAdminUser(userId || 0);
+    const { data: allStoresData } = useAdminStores({ per_page: 100 });
     const createMutation = useCreateUser();
     const updateMutation = useUpdateUser();
     const uploadAvatarMutation = useUploadAvatar();
     const removeAvatarMutation = useRemoveAvatar();
+    const bulkRemoveStoresMutation = useBulkRemoveStores(userId || 0);
+
+    // Get role badge color
+    const getRoleBadge = (role: StoreRole) => {
+        const badges: Record<StoreRole, { label: string; className: string }> = {
+            admin: { label: 'Admin', className: 'bg-red-100 text-red-700 border-red-200' },
+            gerente: { label: 'Gerente', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+            conferente: { label: 'Conferente', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+            vendedor: { label: 'Vendedor', className: 'bg-green-100 text-green-700 border-green-200' },
+            fabrica: { label: 'Fábrica', className: 'bg-purple-100 text-purple-700 border-purple-200' },
+        };
+        return badges[role] || { label: role, className: 'bg-gray-100 text-gray-700' };
+    };
+
+    // Handle remove from store
+    const handleRemoveFromStore = async (storeId: number) => {
+        setRemovingStoreId(storeId);
+        try {
+            await bulkRemoveStoresMutation.mutateAsync({ store_ids: [storeId] });
+        } finally {
+            setRemovingStoreId(null);
+        }
+    };
 
     // Load user data when editing
     useEffect(() => {
@@ -163,6 +210,7 @@ const UserForm: React.FC = () => {
                 password: '',
                 active: userData.active,
                 is_super_admin: userData.is_super_admin,
+                has_fabrica_role: userData.roles?.includes('fabrica') ?? false,
                 cpf: userData.cpf || '',
                 birth_date: userData.birth_date || '',
                 hire_date: userData.hire_date || '',
@@ -268,7 +316,10 @@ const UserForm: React.FC = () => {
                 neighborhood: form.neighborhood || undefined,
                 city: form.city || undefined,
                 state: form.state || undefined,
+                // Permissions
                 ...(canManageSuperAdmins && { is_super_admin: form.is_super_admin }),
+                // Global roles (fabrica)
+                roles: form.has_fabrica_role ? ['fabrica'] as GlobalRole[] : [],
             };
 
             let savedUserId = userId;
@@ -656,7 +707,7 @@ const UserForm: React.FC = () => {
                         <CardHeader className="pb-4">
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <CheckCircle className="h-5 w-5 text-primary" />
-                                Acesso
+                                Acesso e Permissões
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -689,10 +740,157 @@ const UserForm: React.FC = () => {
                                     />
                                 </div>
                             )}
+
+                            {/* Fabrica Role */}
+                            <div className="flex items-center justify-between p-4 rounded-lg border border-purple-500/30 bg-gradient-to-r from-purple-500/5 to-indigo-500/5">
+                                <div className="flex items-center gap-3">
+                                    <Factory className="h-5 w-5 text-purple-500" />
+                                    <div>
+                                        <p className="font-medium text-purple-600">Acesso Fábrica</p>
+                                        <p className="text-sm text-muted-foreground">Acesso ao Portal da Fábrica para produção</p>
+                                    </div>
+                                </div>
+                                <Switch
+                                    checked={form.has_fabrica_role}
+                                    onCheckedChange={(checked) => setForm(f => ({ ...f, has_fabrica_role: checked }))}
+                                />
+                            </div>
+
+                            {form.has_fabrica_role && !form.is_super_admin && (
+                                <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900">
+                                    <p className="text-sm text-purple-700 dark:text-purple-300">
+                                        <strong>Nota:</strong> Usuários com apenas acesso à Fábrica verão somente o Portal da Fábrica,
+                                        sem acesso a outras áreas como Vendas, Clientes ou Comunicados.
+                                    </p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
+
+                    {/* Lojas Vinculadas - Only show when editing */}
+                    {isEditing && userData && (
+                        <Card>
+                            <CardHeader className="pb-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <Store className="h-5 w-5 text-primary" />
+                                            Lojas Vinculadas
+                                            {userData.stores.length > 0 && (
+                                                <Badge variant="secondary" className="ml-2">
+                                                    {userData.stores.length}
+                                                </Badge>
+                                            )}
+                                        </CardTitle>
+                                        <CardDescription className="mt-1">
+                                            Lojas onde este usuário tem acesso e seu cargo em cada uma
+                                        </CardDescription>
+                                    </div>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-2"
+                                                    onClick={() => setAddStoresModalOpen(true)}
+                                                >
+                                                    <Plus className="h-4 w-4" />
+                                                    Adicionar Lojas
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="left">
+                                                <p>Vincular este usuário a uma ou mais lojas</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {userData.stores.length === 0 ? (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        <Users className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                        <p>Este usuário não está vinculado a nenhuma loja</p>
+                                        <p className="text-sm mt-1">
+                                            {form.has_fabrica_role
+                                                ? 'Usuários da fábrica não precisam de vínculo com lojas'
+                                                : 'Adicione vínculos para permitir acesso às lojas'}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="rounded-lg border">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Loja</TableHead>
+                                                    <TableHead>Cargo</TableHead>
+                                                    <TableHead className="w-[60px]"></TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {userData.stores.map((store) => {
+                                                    const badge = getRoleBadge(store.role);
+                                                    return (
+                                                        <TableRow key={store.store_id}>
+                                                            <TableCell className="font-medium">
+                                                                {store.store_name}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className={badge.className}
+                                                                >
+                                                                    {badge.label}
+                                                                </Badge>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                                                                onClick={() => handleRemoveFromStore(store.store_id)}
+                                                                                disabled={removingStoreId === store.store_id}
+                                                                            >
+                                                                                {removingStoreId === store.store_id ? (
+                                                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                                                ) : (
+                                                                                    <X className="h-4 w-4" />
+                                                                                )}
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent side="left">
+                                                                            <p>Remover vínculo com esta loja</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             </form>
+
+            {/* Add Stores Modal */}
+            {isEditing && userData && (
+                <AddStoresToUserModal
+                    userId={userId!}
+                    userName={userData.name}
+                    existingStores={userData.stores}
+                    open={addStoresModalOpen}
+                    onOpenChange={setAddStoresModalOpen}
+                />
+            )}
         </div>
     );
 };

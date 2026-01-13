@@ -5,11 +5,12 @@
  * Provides better UX than modal for many fields.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft, Save, Loader2, Store, MapPin, Hash, Building, Home, Map,
-    Flag, Navigation, Phone, MessageCircle, Instagram, DollarSign, CheckCircle, Upload, Trash2, Globe
+    Flag, Navigation, Phone, MessageCircle, Instagram, DollarSign, CheckCircle, Upload, Trash2, Globe,
+    Users, Plus, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,8 +18,25 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader } from '@/components/PageHeader';
 import { OpeningHoursEditor } from '@/components/OpeningHoursEditor';
+import { AddUsersToStoreModal } from '@/components/admin/AddUsersToStoreModal';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -27,7 +45,10 @@ import {
     useUpdateStore,
     useUploadStorePhoto,
 } from '@/hooks/api/use-admin-stores';
-import type { OpeningHours } from '@/types/admin.types';
+import { apiDelete } from '@/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { handleApiError } from '@/lib/api';
+import type { OpeningHours, StoreRole } from '@/types/admin.types';
 
 // ============================================================
 // Constants
@@ -111,10 +132,47 @@ const StoreForm: React.FC = () => {
     const [openingHours, setOpeningHours] = useState<OpeningHours | null>(null);
 
     // Queries and mutations
+    const queryClient = useQueryClient();
     const { data: storeData, isLoading: isLoadingStore } = useAdminStore(storeId || 0);
     const createMutation = useCreateStore();
     const updateMutation = useUpdateStore();
     const uploadPhotoMutation = useUploadStorePhoto();
+
+    // Modal and user management state
+    const [addUsersModalOpen, setAddUsersModalOpen] = useState(false);
+    const [removingUserId, setRemovingUserId] = useState<number | null>(null);
+
+    // Get users linked to this store
+    const linkedUsers = useMemo(() => storeData?.users || [], [storeData]);
+    const linkedUserIds = useMemo(() => linkedUsers.map(u => u.user_id), [linkedUsers]);
+
+    // Role badge helper
+    const getRoleBadge = (role: StoreRole) => {
+        const badges: Record<StoreRole, { label: string; className: string }> = {
+            admin: { label: 'Admin', className: 'bg-red-100 text-red-700 border-red-200' },
+            gerente: { label: 'Gerente', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+            conferente: { label: 'Conferente', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+            vendedor: { label: 'Vendedor', className: 'bg-green-100 text-green-700 border-green-200' },
+            fabrica: { label: 'Fábrica', className: 'bg-purple-100 text-purple-700 border-purple-200' },
+        };
+        return badges[role] || { label: role, className: 'bg-gray-100 text-gray-700' };
+    };
+
+    // Remove user from store
+    const handleRemoveUser = async (userId: number) => {
+        if (!storeId) return;
+        setRemovingUserId(userId);
+        try {
+            await apiDelete(`/admin/users/${userId}/stores/bulk`, { data: { store_ids: [storeId] } });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+            toast.success('Usuário removido da loja!');
+        } catch (error) {
+            handleApiError(error);
+        } finally {
+            setRemovingUserId(null);
+        }
+    };
 
     // Load store data when editing
     useEffect(() => {
@@ -576,8 +634,137 @@ const StoreForm: React.FC = () => {
                         value={openingHours}
                         onChange={setOpeningHours}
                     />
+
+                    {/* Usuários Vinculados - Only show when editing */}
+                    {isEditing && storeData && (
+                        <Card>
+                            <CardHeader className="pb-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <Users className="h-5 w-5 text-primary" />
+                                            Usuários da Loja
+                                            {linkedUsers.length > 0 && (
+                                                <Badge variant="secondary" className="ml-2">
+                                                    {linkedUsers.length}
+                                                </Badge>
+                                            )}
+                                        </CardTitle>
+                                        <CardDescription className="mt-1">
+                                            Usuários com acesso a esta loja e seus cargos
+                                        </CardDescription>
+                                    </div>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-2"
+                                                    onClick={() => setAddUsersModalOpen(true)}
+                                                >
+                                                    <Plus className="h-4 w-4" />
+                                                    Adicionar Usuários
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="left">
+                                                <p>Vincular usuários a esta loja</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {linkedUsers.length === 0 ? (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        <Users className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                        <p>Nenhum usuário vinculado a esta loja</p>
+                                        <p className="text-sm mt-1">
+                                            Clique em "Adicionar Usuários" para vincular colaboradores
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="rounded-lg border">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Usuário</TableHead>
+                                                    <TableHead>Cargo</TableHead>
+                                                    <TableHead className="w-[60px]"></TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {linkedUsers.map((user) => {
+                                                    const badge = getRoleBadge(user.role);
+                                                    return (
+                                                        <TableRow key={user.user_id}>
+                                                            <TableCell>
+                                                                <div className="flex items-center gap-3">
+                                                                    <Avatar className="h-8 w-8">
+                                                                        <AvatarImage src={user.avatar_url || undefined} />
+                                                                        <AvatarFallback className="text-xs">
+                                                                            {user.user_name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                                                                        </AvatarFallback>
+                                                                    </Avatar>
+                                                                    <span className="font-medium">{user.user_name}</span>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className={badge.className}
+                                                                >
+                                                                    {badge.label}
+                                                                </Badge>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                                                                onClick={() => handleRemoveUser(user.user_id)}
+                                                                                disabled={removingUserId === user.user_id}
+                                                                            >
+                                                                                {removingUserId === user.user_id ? (
+                                                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                                                ) : (
+                                                                                    <X className="h-4 w-4" />
+                                                                                )}
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent side="left">
+                                                                            <p>Remover usuário desta loja</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             </form>
+
+            {/* Add Users Modal */}
+            {isEditing && storeData && (
+                <AddUsersToStoreModal
+                    storeId={storeId!}
+                    storeName={storeData.name}
+                    existingUserIds={linkedUserIds}
+                    open={addUsersModalOpen}
+                    onOpenChange={setAddUsersModalOpen}
+                />
+            )}
         </div>
     );
 };

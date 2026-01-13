@@ -1,5 +1,5 @@
 // Roles do sistema
-export type UserRole = 'admin' | 'gerente' | 'conferente' | 'vendedor';
+export type UserRole = 'admin' | 'gerente' | 'conferente' | 'vendedor' | 'fabrica';
 
 export interface User {
   id: string;

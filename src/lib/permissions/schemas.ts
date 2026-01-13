@@ -10,17 +10,18 @@ import { z } from 'zod';
 // ROLES
 // ============================================
 
-export const roleSchema = z.enum(['admin', 'gerente', 'conferente', 'vendedor']);
+export const roleSchema = z.enum(['admin', 'gerente', 'conferente', 'vendedor', 'fabrica']);
 export type Role = z.infer<typeof roleSchema>;
 
 /**
  * Role hierarchy (higher number = more permissions)
  */
 export const ROLE_HIERARCHY: Record<Role, number> = {
-    admin: 4,
-    gerente: 3,
-    conferente: 2,
-    vendedor: 1,
+    admin: 5,
+    gerente: 4,
+    conferente: 3,
+    vendedor: 2,
+    fabrica: 1,
 };
 
 // ============================================
@@ -136,6 +137,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         'commission:view_own',
         'shift:create',
         'closing:submit',
+    ],
+    fabrica: [
+        'dashboard:view',
     ],
 };
 

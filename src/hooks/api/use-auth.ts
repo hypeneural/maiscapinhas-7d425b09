@@ -196,12 +196,26 @@ export function useChangePassword() {
 
 /**
  * Check if user has a specific role in any store
- * Super admins implicitly have all roles
+ * Super admins and global admins implicitly have access to admin-level features
+ * Uses has_fabrica_access from /me endpoint for fabrica role
  */
 export function hasRole(user: UserWithStores | null | undefined, role: string): boolean {
     if (!user) return false;
+
     // Super admin has all roles
     if (user.is_super_admin) return true;
+
+    // Check for fabrica role using the new has_fabrica_access field
+    if (role === 'fabrica') {
+        return user.has_fabrica_access ?? false;
+    }
+
+    // Check for admin role using is_global_admin
+    if (role === 'admin') {
+        return user.is_global_admin ?? false;
+    }
+
+    // For other roles, check stores
     if (!user.stores) return false;
     return user.stores.some((s) => s.role === role);
 }

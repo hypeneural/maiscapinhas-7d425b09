@@ -6,7 +6,7 @@
  */
 
 import React, { useState } from 'react';
-import { X, RefreshCw, Send, Loader2 } from 'lucide-react';
+import { X, RefreshCw, Send, Loader2, ShoppingCart, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +39,8 @@ interface BulkActionBarProps {
     onClearSelection: () => void;
     onStatusChange?: (ids: number[], status: number) => Promise<void>;
     onSendToProduction?: (ids: number[], date: string) => Promise<void>;
+    onAddToCart?: (ids: number[]) => Promise<{ added: number; blocked: number }>;
+    eligibleForCart?: number; // Count of items eligible for cart
     statusOptions?: readonly StatusOption[];
     type?: 'pedido' | 'capa';
     className?: string;
@@ -49,15 +51,19 @@ export function BulkActionBar({
     onClearSelection,
     onStatusChange,
     onSendToProduction,
+    onAddToCart,
+    eligibleForCart = 0,
     statusOptions,
     type = 'pedido',
     className,
 }: BulkActionBarProps) {
     const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
     const [isProductionDialogOpen, setIsProductionDialogOpen] = useState(false);
+    const [isCartDialogOpen, setIsCartDialogOpen] = useState(false);
     const [selectedStatus, setSelectedStatus] = useState<string>('');
     const [productionDate, setProductionDate] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [cartResult, setCartResult] = useState<{ added: number; blocked: number } | null>(null);
 
     const options = statusOptions || (type === 'capa' ? CAPA_STATUS_OPTIONS : PEDIDO_STATUS_OPTIONS);
 
@@ -84,6 +90,22 @@ export function BulkActionBar({
             setIsProductionDialogOpen(false);
             setProductionDate('');
             onClearSelection();
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAddToCart = async () => {
+        if (!onAddToCart) return;
+
+        setIsLoading(true);
+        try {
+            const result = await onAddToCart(selectedIds);
+            setCartResult(result);
+            if (result.added > 0) {
+                setIsCartDialogOpen(false);
+                onClearSelection();
+            }
         } finally {
             setIsLoading(false);
         }
@@ -141,6 +163,26 @@ export function BulkActionBar({
                         >
                             <Send className="h-4 w-4" />
                             Enviar para Produção
+                        </Button>
+                    )}
+
+                    {onAddToCart && type === 'capa' && (
+                        <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                                setCartResult(null);
+                                setIsCartDialogOpen(true);
+                            }}
+                            className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all shadow-md hover:shadow-lg"
+                        >
+                            <ShoppingCart className="h-4 w-4" />
+                            Adicionar ao Carrinho
+                            {eligibleForCart < selectedIds.length && (
+                                <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-amber-500 text-white">
+                                    {eligibleForCart}/{selectedIds.length}
+                                </span>
+                            )}
                         </Button>
                     )}
                 </div>
@@ -247,6 +289,77 @@ export function BulkActionBar({
                         >
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Enviar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add to Cart dialog */}
+            <Dialog open={isCartDialogOpen} onOpenChange={setIsCartDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <ShoppingCart className="h-5 w-5 text-primary" />
+                            Adicionar ao Carrinho de Produção
+                        </DialogTitle>
+                        <DialogDescription>
+                            {eligibleForCart === selectedIds.length ? (
+                                <span className="flex items-center gap-2 text-emerald-600">
+                                    <CheckCircle className="h-4 w-4" />
+                                    Todas as {selectedIds.length} capas podem ser adicionadas ao carrinho.
+                                </span>
+                            ) : eligibleForCart === 0 ? (
+                                <span className="flex items-center gap-2 text-destructive">
+                                    <AlertCircle className="h-4 w-4" />
+                                    Nenhuma capa pode ser adicionada. Somente capas com status
+                                    "Encomenda Solicitada" e com foto são elegíveis.
+                                </span>
+                            ) : (
+                                <div className="space-y-2">
+                                    <span className="flex items-center gap-2 text-amber-600">
+                                        <AlertCircle className="h-4 w-4" />
+                                        {eligibleForCart} de {selectedIds.length} capas podem ser adicionadas.
+                                    </span>
+                                    <p className="text-xs text-muted-foreground">
+                                        Capas bloqueadas: status diferente de "Encomenda Solicitada",
+                                        sem foto, já no carrinho ou já enviadas.
+                                    </p>
+                                </div>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {cartResult && cartResult.blocked > 0 && (
+                        <div className="py-2 px-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                            <p className="text-sm text-amber-800 dark:text-amber-200">
+                                {cartResult.added > 0 ? (
+                                    <>{cartResult.added} adicionadas, {cartResult.blocked} bloqueadas.</>
+                                ) : (
+                                    <>Todas as {cartResult.blocked} capas foram bloqueadas.</>
+                                )}
+                            </p>
+                        </div>
+                    )}
+
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsCartDialogOpen(false)}
+                            disabled={isLoading}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleAddToCart}
+                            disabled={eligibleForCart === 0 || isLoading}
+                            className="gap-2"
+                        >
+                            {isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <ShoppingCart className="h-4 w-4" />
+                            )}
+                            Adicionar {eligibleForCart > 0 && `(${eligibleForCart})`}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

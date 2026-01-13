@@ -2,10 +2,20 @@
  * Admin Types
  * 
  * TypeScript types for admin/configuration API endpoints.
- * Based on backend API specification v1.0 (2026-01-10)
+ * Based on backend API specification v2.0 (2026-01-13)
  */
 
 import type { UserRole } from './api';
+
+// ============================================================
+// Roles & Permissions
+// ============================================================
+
+/** Global roles managed by Spatie (not store-specific) */
+export type GlobalRole = 'fabrica';
+
+/** Store-specific roles */
+export type StoreRole = UserRole;
 
 // ============================================================
 // Admin Users
@@ -19,7 +29,14 @@ export interface AdminUserResponse {
     name: string;
     email: string;
     active: boolean;
+
+    // Permissions
     is_super_admin: boolean;
+    is_global_admin: boolean;       // super_admin OR admin in any store
+    has_fabrica_access: boolean;    // Has 'fabrica' role
+    roles: GlobalRole[];            // Global roles from Spatie
+
+    // Profile
     birth_date: string | null;      // "YYYY-MM-DD"
     hire_date: string | null;       // "YYYY-MM-DD"
     whatsapp: string | null;
@@ -48,6 +65,7 @@ export interface AdminUserResponse {
 export interface UserStoreBinding {
     store_id: number;
     store_name: string;
+    store_city: string | null;
     role: UserRole;
 }
 
@@ -63,6 +81,7 @@ export interface CreateUserRequest {
     // Optional fields
     active?: boolean;
     is_super_admin?: boolean;
+    roles?: GlobalRole[];       // Global roles (e.g., ['fabrica'])
     birth_date?: string;        // "YYYY-MM-DD"
     hire_date?: string;         // "YYYY-MM-DD"
     whatsapp?: string;          // max 20
@@ -79,10 +98,10 @@ export interface CreateUserRequest {
     city?: string;              // max 255
     state?: string;             // max 2 (UF)
 
-    // Store bindings
+    // Store bindings (created at same time as user)
     stores?: Array<{
         store_id: number;
-        role: UserRole;
+        role: StoreRole;
     }>;
 }
 
@@ -95,6 +114,7 @@ export interface UpdateUserRequest {
     password?: string;
     active?: boolean;
     is_super_admin?: boolean;
+    roles?: GlobalRole[];           // Update global roles
     birth_date?: string | null;
     hire_date?: string | null;
     whatsapp?: string | null;
@@ -118,6 +138,58 @@ export interface UpdateUserRequest {
 export interface AvatarResponse {
     user_id: number;
     avatar_url: string | null;
+}
+
+// ============================================================
+// Bulk Store Operations
+// ============================================================
+
+/** POST /admin/users/{id}/stores/bulk - Add to multiple stores */
+export interface BulkAddStoresRequest {
+    stores: Array<{
+        store_id: number;
+        role: StoreRole;
+    }>;
+}
+
+export interface BulkAddStoresResponse {
+    message: string;
+    created: number[];   // store_ids that were added
+    skipped: number[];   // store_ids already linked
+}
+
+/** PATCH /admin/users/{id}/stores/bulk - Update role in multiple stores */
+export interface BulkUpdateStoresRequest {
+    role: StoreRole;
+    store_ids: number[];
+}
+
+export interface BulkUpdateStoresResponse {
+    message: string;
+    updated_count: number;
+}
+
+/** DELETE /admin/users/{id}/stores/bulk - Remove from multiple stores */
+export interface BulkRemoveStoresRequest {
+    store_ids: number[];
+}
+
+export interface BulkRemoveStoresResponse {
+    message: string;
+    deleted_count: number;
+}
+
+/** PUT /admin/users/{id}/stores - Sync all stores (replace) */
+export interface SyncStoresRequest {
+    stores: Array<{
+        store_id: number;
+        role: StoreRole;
+    }>;
+}
+
+export interface SyncStoresResponse {
+    message: string;
+    user: AdminUserResponse;
 }
 
 // ============================================================
@@ -225,6 +297,7 @@ export interface StoreUserBinding {
     user_name: string;
     user_email: string;
     user_active: boolean;
+    avatar_url: string | null;
     role: UserRole;
     created_at: string;
 }
@@ -531,6 +604,9 @@ export interface AdminListFilters {
     search?: string;
     active?: boolean;
     store_id?: number;
+    has_stores?: boolean;           // true = with stores, false = without stores
+    role?: GlobalRole;              // Filter by global role (e.g., 'fabrica')
+    is_global_admin?: boolean;      // true = super_admin or admin in any store
     per_page?: number;
     page?: number;
 }

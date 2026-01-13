@@ -7,14 +7,31 @@
 
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Users, Store, Plus, Pencil, Trash2, UserPlus, Crown, Eye } from 'lucide-react';
+import { Users, Store, Plus, Pencil, Trash2, UserPlus, Crown, Factory, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { PageHeader } from '@/components/PageHeader';
 import { DataTable, ConfirmDialog, type Column, type RowAction } from '@/components/crud';
+import { AddStoresToUserModal } from '@/components/admin/AddStoresToUserModal';
+import { AddUsersToStoreModal } from '@/components/admin/AddUsersToStoreModal';
+import { ViewLinkedStoresModal } from '@/components/admin/ViewLinkedStoresModal';
+import { ViewLinkedUsersModal } from '@/components/admin/ViewLinkedUsersModal';
 import {
   useAdminUsers,
   useDeactivateUser,
@@ -26,7 +43,7 @@ import {
 } from '@/hooks/api/use-admin-stores';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import type { AdminUserResponse, AdminStoreResponse } from '@/types/admin.types';
+import type { AdminUserResponse, AdminStoreResponse, AdminListFilters, GlobalRole } from '@/types/admin.types';
 import type { UserRole } from '@/types/api';
 
 // ============================================================
@@ -38,6 +55,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   gerente: 'Gerente',
   conferente: 'Conferente',
   vendedor: 'Vendedor',
+  fabrica: 'Fábrica',
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
@@ -45,6 +63,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
   gerente: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
   conferente: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
   vendedor: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
+  fabrica: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
 };
 
 const SUPER_ADMIN_COLOR = 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-amber-500/30';
@@ -60,7 +79,25 @@ function UsersTab() {
   const [page, setPage] = useState(1);
   const [confirmDelete, setConfirmDelete] = useState<AdminUserResponse | null>(null);
 
-  const { data: usersData, isLoading } = useAdminUsers({ search, page, per_page: 25 });
+  // Modal state for quick linking
+  const [selectedUserForStores, setSelectedUserForStores] = useState<AdminUserResponse | null>(null);
+
+  // Advanced filters
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'fabrica' | 'super_admin'>('all');
+  const [storesFilter, setStoresFilter] = useState<'all' | 'with_stores' | 'without_stores'>('all');
+
+  // Build filters object
+  const filters: AdminListFilters = {
+    search,
+    page,
+    per_page: 25,
+    ...(statusFilter !== 'all' && { active: statusFilter === 'active' }),
+    ...(roleFilter === 'fabrica' && { role: 'fabrica' as GlobalRole }),
+    ...(storesFilter !== 'all' && { has_stores: storesFilter === 'with_stores' }),
+  };
+
+  const { data: usersData, isLoading } = useAdminUsers(filters);
   const deactivateMutation = useDeactivateUser();
   const reactivateMutation = useReactivateUser();
 
@@ -100,17 +137,49 @@ function UsersTab() {
         <div className="flex flex-wrap gap-1">
           {user.is_super_admin ? (
             <Badge className={SUPER_ADMIN_COLOR}>Super Admin</Badge>
-          ) : user.stores.length > 0 ? (
-            user.stores.slice(0, 2).map((s, i) => (
-              <Badge key={i} variant="outline" className={ROLE_COLORS[s.role]}>
-                {s.store_name.length > 15 ? s.store_name.slice(0, 15) + '...' : s.store_name}
-              </Badge>
-            ))
           ) : (
-            <span className="text-muted-foreground text-sm">Sem vínculos</span>
-          )}
-          {user.stores.length > 2 && (
-            <Badge variant="secondary">+{user.stores.length - 2}</Badge>
+            <>
+              {/* Fabrica badge if user has fabrica access */}
+              {user.has_fabrica_access && (
+                <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 gap-1">
+                  <Factory className="h-3 w-3" />
+                  Fábrica
+                </Badge>
+              )}
+              {/* Store badges */}
+              {user.stores.length > 0 ? (
+                user.stores.slice(0, user.has_fabrica_access ? 1 : 2).map((s, i) => (
+                  <Badge key={i} variant="outline" className={ROLE_COLORS[s.role]}>
+                    {s.store_name.length > 12 ? s.store_name.slice(0, 12) + '...' : s.store_name}
+                  </Badge>
+                ))
+              ) : !user.has_fabrica_access && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-muted-foreground hover:text-primary gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedUserForStores(user);
+                        }}
+                      >
+                        <Plus className="h-3 w-3" />
+                        Vincular lojas
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Adicionar este usuário a uma ou mais lojas</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {user.stores.length > (user.has_fabrica_access ? 1 : 2) && (
+                <Badge variant="secondary">+{user.stores.length - (user.has_fabrica_access ? 1 : 2)}</Badge>
+              )}
+            </>
           )}
         </div>
       ),
@@ -155,8 +224,41 @@ function UsersTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div />
+      <div className="flex flex-wrap justify-between items-center gap-4">
+        {/* Advanced Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Select value={statusFilter} onValueChange={(v: 'all' | 'active' | 'inactive') => setStatusFilter(v)}>
+            <SelectTrigger className="w-[130px] h-9">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="active">Ativos</SelectItem>
+              <SelectItem value="inactive">Inativos</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={roleFilter} onValueChange={(v: 'all' | 'fabrica' | 'super_admin') => setRoleFilter(v)}>
+            <SelectTrigger className="w-[150px] h-9">
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os tipos</SelectItem>
+              <SelectItem value="fabrica">Fábrica</SelectItem>
+              <SelectItem value="super_admin">Super Admin</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={storesFilter} onValueChange={(v: 'all' | 'with_stores' | 'without_stores') => setStoresFilter(v)}>
+            <SelectTrigger className="w-[150px] h-9">
+              <SelectValue placeholder="Lojas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="with_stores">Com lojas</SelectItem>
+              <SelectItem value="without_stores">Sem lojas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <Button onClick={() => navigate('/config/usuarios/novo')} className="gap-2">
           <Plus className="h-4 w-4" />
           Novo Usuário
@@ -208,6 +310,17 @@ function UsersTab() {
         loading={deactivateMutation.isPending}
         variant="destructive"
       />
+
+      {/* Quick Add Stores Modal */}
+      {selectedUserForStores && (
+        <AddStoresToUserModal
+          userId={selectedUserForStores.id}
+          userName={selectedUserForStores.name}
+          existingStores={selectedUserForStores.stores}
+          open={!!selectedUserForStores}
+          onOpenChange={(open) => !open && setSelectedUserForStores(null)}
+        />
+      )}
     </div>
   );
 }
@@ -221,6 +334,9 @@ function StoresTab() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [confirmDelete, setConfirmDelete] = useState<AdminStoreResponse | null>(null);
+
+  // Modal state for quick linking
+  const [selectedStoreForUsers, setSelectedStoreForUsers] = useState<AdminStoreResponse | null>(null);
 
   const { data: storesData, isLoading } = useAdminStores({ search, page, per_page: 25 });
   const deactivateMutation = useDeactivateStore();
@@ -259,11 +375,36 @@ function StoresTab() {
     {
       key: 'users_count',
       label: 'Usuários',
-      render: (value) => (
-        <Badge variant="secondary">
-          {(value as number) || 0} usuários
-        </Badge>
-      ),
+      render: (value, store) => {
+        const count = (value as number) || 0;
+        return count > 0 ? (
+          <Badge variant="secondary">
+            {count} usuários
+          </Badge>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-muted-foreground hover:text-primary gap-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedStoreForUsers(store);
+                  }}
+                >
+                  <Plus className="h-3 w-3" />
+                  Vincular usuários
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Adicionar usuários a esta loja</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      },
     },
     {
       key: 'active',
@@ -353,6 +494,17 @@ function StoresTab() {
         loading={deactivateMutation.isPending}
         variant="destructive"
       />
+
+      {/* Quick Add Users Modal */}
+      {selectedStoreForUsers && (
+        <AddUsersToStoreModal
+          storeId={selectedStoreForUsers.id}
+          storeName={selectedStoreForUsers.name}
+          existingUserIds={selectedStoreForUsers.users?.map(u => u.user_id) || []}
+          open={!!selectedStoreForUsers}
+          onOpenChange={(open) => !open && setSelectedStoreForUsers(null)}
+        />
+      )}
     </div>
   );
 }

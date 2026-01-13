@@ -8,7 +8,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usersService } from '@/services/admin';
 import { handleApiError } from '@/lib/api';
 import { toast } from 'sonner';
-import type { AdminListFilters, CreateUserRequest, UpdateUserRequest } from '@/types/admin.types';
+import type {
+    AdminListFilters,
+    CreateUserRequest,
+    UpdateUserRequest,
+    BulkAddStoresRequest,
+    BulkUpdateStoresRequest,
+    BulkRemoveStoresRequest,
+    SyncStoresRequest,
+} from '@/types/admin.types';
 
 /**
  * Query key factory for admin users
@@ -154,3 +162,90 @@ export function useRemoveAvatar() {
         },
     });
 }
+
+// ============================================================
+// Bulk Store Operations
+// ============================================================
+
+/**
+ * Hook to add user to multiple stores at once
+ */
+export function useBulkAddStores(userId: number) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (data: BulkAddStoresRequest) => usersService.bulkAddStores(userId, data),
+        onSuccess: (result) => {
+            queryClient.invalidateQueries({ queryKey: adminUsersKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: adminUsersKeys.detail(userId) });
+            const count = result.created.length;
+            const skipped = result.skipped.length;
+            if (skipped > 0) {
+                toast.success(`${count} loja(s) adicionada(s), ${skipped} já vinculada(s)`);
+            } else {
+                toast.success(`${count} loja(s) adicionada(s) com sucesso!`);
+            }
+        },
+        onError: (error) => {
+            handleApiError(error);
+        },
+    });
+}
+
+/**
+ * Hook to update role in multiple stores at once
+ */
+export function useBulkUpdateStores(userId: number) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (data: BulkUpdateStoresRequest) => usersService.bulkUpdateStores(userId, data),
+        onSuccess: (result) => {
+            queryClient.invalidateQueries({ queryKey: adminUsersKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: adminUsersKeys.detail(userId) });
+            toast.success(`${result.updated_count} cargo(s) atualizado(s) com sucesso!`);
+        },
+        onError: (error) => {
+            handleApiError(error);
+        },
+    });
+}
+
+/**
+ * Hook to remove user from multiple stores at once
+ */
+export function useBulkRemoveStores(userId: number) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (data: BulkRemoveStoresRequest) => usersService.bulkRemoveStores(userId, data),
+        onSuccess: (result) => {
+            queryClient.invalidateQueries({ queryKey: adminUsersKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: adminUsersKeys.detail(userId) });
+            toast.success(`${result.deleted_count} vínculo(s) removido(s) com sucesso!`);
+        },
+        onError: (error) => {
+            handleApiError(error);
+        },
+    });
+}
+
+/**
+ * Hook to sync user stores (replace all)
+ */
+export function useSyncStores(userId: number) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (data: SyncStoresRequest) => usersService.syncStores(userId, data),
+        onSuccess: (result) => {
+            queryClient.invalidateQueries({ queryKey: adminUsersKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: adminUsersKeys.detail(userId) });
+            toast.success(result.message);
+        },
+        onError: (error) => {
+            handleApiError(error);
+        },
+    });
+}
+

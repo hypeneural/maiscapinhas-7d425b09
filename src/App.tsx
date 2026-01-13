@@ -65,6 +65,15 @@ const Comunicados = lazy(() => import("@/pages/comunicados/Comunicados"));
 const ComunicadosAdmin = lazy(() => import("@/pages/config/comunicados/ComunicadosAdmin"));
 const ComunicadoForm = lazy(() => import("@/pages/config/comunicados/ComunicadoForm"));
 
+// Produção (Admin)
+const ProducaoCarrinho = lazy(() => import("@/pages/producao/ProducaoCarrinho"));
+const ProducaoPedidos = lazy(() => import("@/pages/producao/ProducaoPedidos"));
+const ProducaoPedidoDetail = lazy(() => import("@/pages/producao/ProducaoPedidoDetail"));
+
+// Fábrica
+const FabricaPedidos = lazy(() => import("@/pages/fabrica/FabricaPedidos"));
+const FabricaPedidoDetail = lazy(() => import("@/pages/fabrica/FabricaPedidoDetail"));
+
 // Loading fallback component
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -123,8 +132,38 @@ const App = () => (
                 <Route path="/capas/:id" element={<CapaDetail />} />
                 <Route path="/capas/:id/editar" element={<CapaForm />} />
 
+                {/* Capas - Carrinho e Pedidos de Produção (Admin) */}
+                <Route path="/capas/carrinho" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <ProducaoCarrinho />
+                  </ProtectedRoute>
+                } />
+                <Route path="/capas/pedidos" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <ProducaoPedidos />
+                  </ProtectedRoute>
+                } />
+                <Route path="/capas/pedidos/:id" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <ProducaoPedidoDetail />
+                  </ProtectedRoute>
+                } />
+
                 {/* Comunicados - All authenticated users */}
                 <Route path="/comunicados" element={<Comunicados />} />
+
+                {/* Fábrica - Factory role + Admin/Super Admin */}
+                <Route path="/fabrica" element={<Navigate to="/fabrica/pedidos" replace />} />
+                <Route path="/fabrica/pedidos" element={
+                  <ProtectedRoute requiredRoles={['fabrica', 'admin']}>
+                    <FabricaPedidos />
+                  </ProtectedRoute>
+                } />
+                <Route path="/fabrica/pedidos/:id" element={
+                  <ProtectedRoute requiredRoles={['fabrica', 'admin']}>
+                    <FabricaPedidoDetail />
+                  </ProtectedRoute>
+                } />
 
                 {/* Faturamento - Vendedor */}
                 <Route path="/faturamento" element={<Navigate to="/faturamento/extrato" replace />} />

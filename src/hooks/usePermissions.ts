@@ -109,12 +109,17 @@ export function usePermissions(): UsePermissionsReturn {
     );
 
     // Check exact role - Super admin counts as having all roles
+    // For fabrica role, check has_fabrica_access since fabrica users have no stores
     const hasRole = useCallback(
         (role: Role): boolean => {
             if (isSuperAdmin) return true;
+            // Special check for fabrica role using has_fabrica_access from /me
+            if (role === 'fabrica') {
+                return user?.has_fabrica_access ?? false;
+            }
             return currentRole === role;
         },
-        [currentRole, isSuperAdmin]
+        [currentRole, isSuperAdmin, user?.has_fabrica_access]
     );
 
     // Check minimum role (hierarchy) - Super admin is above all

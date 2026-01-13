@@ -114,9 +114,10 @@ export async function apiPatch<T, D = unknown>(url: string, data?: D): Promise<T
 
 /**
  * Helper to make DELETE requests with type safety
+ * Supports optional config for requests that need body data
  */
-export async function apiDelete<T>(url: string): Promise<T> {
-    const response = await api.delete<T>(url);
+export async function apiDelete<T>(url: string, config?: { data?: unknown }): Promise<T> {
+    const response = await api.delete<T>(url, config);
     return response.data;
 }
 

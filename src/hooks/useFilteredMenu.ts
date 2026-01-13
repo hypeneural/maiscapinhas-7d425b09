@@ -14,12 +14,13 @@ interface UseFilteredMenuReturn {
 }
 
 export function useFilteredMenu(): UseFilteredMenuReturn {
-    const { hasPermission, hasRole, hasMinRole, isLoading } = usePermissions();
+    const { hasPermission, hasRole, hasMinRole, isLoading, isSuperAdmin } = usePermissions();
 
     const menu = useMemo(() => {
         if (isLoading) return [];
-        return filterMenuSections(menuSections, hasPermission, hasRole, hasMinRole);
-    }, [hasPermission, hasRole, hasMinRole, isLoading]);
+        return filterMenuSections(menuSections, hasPermission, hasRole, hasMinRole, isSuperAdmin);
+    }, [hasPermission, hasRole, hasMinRole, isLoading, isSuperAdmin]);
 
     return { menu, isLoading };
 }
+

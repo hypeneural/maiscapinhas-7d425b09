@@ -45,7 +45,7 @@ export type PaymentMethod = 'dinheiro' | 'pix' | 'credito' | 'debito';
 /**
  * User roles in the system
  */
-export type UserRole = 'admin' | 'gerente' | 'conferente' | 'vendedor';
+export type UserRole = 'admin' | 'gerente' | 'conferente' | 'vendedor' | 'fabrica';
 
 /**
  * Cash shift codes (time periods)
@@ -85,13 +85,16 @@ export interface User {
     name: string;
     email: string;
     active: boolean;
-    is_super_admin?: boolean;  // Super Administrator flag - has access to everything
+    is_super_admin?: boolean;       // Super Administrator flag - has access to everything
+    is_global_admin?: boolean;      // True if is_super_admin OR admin in any store
+    has_fabrica_access?: boolean;   // True if has 'fabrica' role (Spatie)
+    roles?: string[];               // Global roles from Spatie (e.g., ['fabrica'])
     whatsapp?: string | null;
     avatar_url?: string | null;
     instagram?: string | null;
-    birth_date?: string | null;   // YYYY-MM-DD
-    hire_date?: string | null;    // YYYY-MM-DD (data de admissão)
-    created_at?: string;          // ISO 8601
+    birth_date?: string | null;     // YYYY-MM-DD
+    hire_date?: string | null;      // YYYY-MM-DD (data de admissão)
+    created_at?: string;            // ISO 8601
     // Legacy field (some older code uses phone)
     phone?: string;
 }
