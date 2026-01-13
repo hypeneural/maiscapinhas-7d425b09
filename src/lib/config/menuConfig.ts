@@ -20,6 +20,10 @@ import {
     Gift,
     Users,
     ScrollText,
+    Palette,
+    Smartphone,
+    Megaphone,
+    MessageSquare,
     type LucideIcon,
 } from 'lucide-react';
 import type { Role, Permission } from '@/lib/permissions';
@@ -60,8 +64,41 @@ export const menuSections: MenuSection[] = [
                 path: '/',
                 permissions: ['dashboard:view'],
             },
+            {
+                id: 'comunicados',
+                label: 'Comunicados',
+                icon: MessageSquare,
+                path: '/comunicados',
+            },
         ],
     },
+
+    // Clientes, Pedidos, Capas - Everyone
+    {
+        id: 'vendas',
+        title: 'Vendas',
+        items: [
+            {
+                id: 'clientes',
+                label: 'Clientes',
+                icon: Users,
+                path: '/clientes',
+            },
+            {
+                id: 'pedidos',
+                label: 'Pedidos',
+                icon: FileCheck,
+                path: '/pedidos',
+            },
+            {
+                id: 'capas-personalizadas',
+                label: 'Capas Personalizadas',
+                icon: Palette,
+                path: '/capas',
+            },
+        ],
+    },
+
 
     // Faturamento - Vendedor
     {
@@ -195,6 +232,12 @@ export const menuSections: MenuSection[] = [
                 roles: ['admin'],
                 permissions: ['users:manage', 'stores:manage'],
             },
+            {
+                id: 'gerenciar-comunicados',
+                label: 'Gerenciar Comunicados',
+                icon: Megaphone,
+                path: '/config/comunicados',
+            },
         ],
     },
 
@@ -210,6 +253,12 @@ export const menuSections: MenuSection[] = [
                 icon: ScrollText,
                 path: '/config/auditoria',
                 permissions: ['audit:view'],
+            },
+            {
+                id: 'phone-catalog',
+                label: 'Catálogo de Aparelhos',
+                icon: Smartphone,
+                path: '/config/catalogo',
             },
         ],
     },

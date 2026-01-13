@@ -25,3 +25,9 @@ export {
     getCashIntegrity,
     getBirthdays,
 } from './reports.service';
+
+// New services
+export { customersService } from './customers.service';
+export { phoneCatalogService } from './phone-catalog.service';
+export { pedidosService } from './pedidos.service';
+export { capasService } from './capas.service';

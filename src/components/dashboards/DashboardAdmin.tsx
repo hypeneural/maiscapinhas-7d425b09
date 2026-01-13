@@ -16,6 +16,7 @@ import { InfoTooltip } from '@/components/InfoTooltip';
 import { TrendBadge } from '@/components/TrendBadge';
 import { MedalIcon } from '@/components/MedalIcon';
 import { StorePerformanceChart, GoalDistributionChart, SalesProjectionChart } from '@/components/charts';
+import { AnnouncementDashboardSection } from '@/components/announcements';
 import {
   Trophy,
   Store,
@@ -147,6 +148,9 @@ export const DashboardAdmin: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* Announcements Section */}
+      <AnnouncementDashboardSection />
 
       {/* Stats gerais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -11,6 +11,7 @@ import { useConferenteDashboard, usePendingShifts, useDivergentShifts } from '@/
 import { StatCard } from '@/components/StatCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AnnouncementDashboardSection } from '@/components/announcements';
 import {
   FileCheck,
   AlertTriangle,
@@ -100,6 +101,9 @@ export const DashboardConferente: React.FC = () => {
           {currentStore?.name || 'Gerencie os envelopes e validações do dia'}
         </p>
       </div>
+
+      {/* Announcements Section */}
+      <AnnouncementDashboardSection storeId={storeId} />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">

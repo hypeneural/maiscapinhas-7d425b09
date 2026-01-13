@@ -16,6 +16,7 @@ import { StatCard } from '@/components/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AnnouncementDashboardSection } from '@/components/announcements';
 import {
   Wallet,
   TrendingUp,
@@ -123,6 +124,9 @@ export const DashboardVendedor: React.FC = () => {
         </div>
         <CountdownTimer endTime={fimTurno} />
       </div>
+
+      {/* Announcements Section */}
+      <AnnouncementDashboardSection storeId={currentStore?.id} />
 
       {/* Gauge Central - Vendas do Dia */}
       <div className="bg-card rounded-2xl border p-6 shadow-lg animate-fade-in">

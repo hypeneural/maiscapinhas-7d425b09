@@ -112,3 +112,9 @@ export interface DashboardAdmin {
     quantidadeOcorrencias: number;
   }[];
 }
+
+// Re-export new types
+export * from './customers.types';
+export * from './pedidos.types';
+export * from './capas.types';
+

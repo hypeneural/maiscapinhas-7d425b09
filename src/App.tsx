@@ -39,6 +39,32 @@ const Auditoria = lazy(() => import("@/pages/config/Auditoria"));
 const Unauthorized = lazy(() => import("@/pages/Unauthorized"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
+// Clientes
+const Clientes = lazy(() => import("@/pages/clientes/Clientes"));
+const CustomerForm = lazy(() => import("@/pages/clientes/CustomerForm"));
+const CustomerDetail = lazy(() => import("@/pages/clientes/CustomerDetail"));
+
+// Pedidos
+const Pedidos = lazy(() => import("@/pages/pedidos/Pedidos"));
+const PedidoForm = lazy(() => import("@/pages/pedidos/PedidoForm"));
+const PedidoDetail = lazy(() => import("@/pages/pedidos/PedidoDetail"));
+
+// Capas Personalizadas
+const Capas = lazy(() => import("@/pages/capas/Capas"));
+const CapaForm = lazy(() => import("@/pages/capas/CapaForm"));
+const CapaDetail = lazy(() => import("@/pages/capas/CapaDetail"));
+
+// Customer Upload (Public)
+const CustomerUpload = lazy(() => import("@/pages/upload/CustomerUpload"));
+
+// Phone Catalog (Admin)
+const PhoneCatalog = lazy(() => import("@/pages/config/PhoneCatalog"));
+
+// Comunicados
+const Comunicados = lazy(() => import("@/pages/comunicados/Comunicados"));
+const ComunicadosAdmin = lazy(() => import("@/pages/config/comunicados/ComunicadosAdmin"));
+const ComunicadoForm = lazy(() => import("@/pages/config/comunicados/ComunicadoForm"));
+
 // Loading fallback component
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -67,6 +93,10 @@ const App = () => (
                 </GuestRoute>
               } />
 
+              {/* Public upload route - no auth required */}
+              <Route path="/upload/:capaId" element={<CustomerUpload />} />
+              <Route path="/upload/:capaId/:token" element={<CustomerUpload />} />
+
               {/* Protected routes */}
               <Route element={
                 <ProtectedRoute>
@@ -74,6 +104,27 @@ const App = () => (
                 </ProtectedRoute>
               }>
                 <Route path="/" element={<Dashboard />} />
+
+                {/* Clientes - All authenticated users */}
+                <Route path="/clientes" element={<Clientes />} />
+                <Route path="/clientes/novo" element={<CustomerForm />} />
+                <Route path="/clientes/:id" element={<CustomerDetail />} />
+                <Route path="/clientes/:id/editar" element={<CustomerForm />} />
+
+                {/* Pedidos - All authenticated users */}
+                <Route path="/pedidos" element={<Pedidos />} />
+                <Route path="/pedidos/novo" element={<PedidoForm />} />
+                <Route path="/pedidos/:id" element={<PedidoDetail />} />
+                <Route path="/pedidos/:id/editar" element={<PedidoForm />} />
+
+                {/* Capas Personalizadas - All authenticated users */}
+                <Route path="/capas" element={<Capas />} />
+                <Route path="/capas/novo" element={<CapaForm />} />
+                <Route path="/capas/:id" element={<CapaDetail />} />
+                <Route path="/capas/:id/editar" element={<CapaForm />} />
+
+                {/* Comunicados - All authenticated users */}
+                <Route path="/comunicados" element={<Comunicados />} />
 
                 {/* Faturamento - Vendedor */}
                 <Route path="/faturamento" element={<Navigate to="/faturamento/extrato" replace />} />
@@ -182,6 +233,28 @@ const App = () => (
                 <Route path="/config/auditoria" element={
                   <ProtectedRoute requiredRoles={['admin']}>
                     <Auditoria />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/catalogo" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <PhoneCatalog />
+                  </ProtectedRoute>
+                } />
+
+                {/* Gerenciar Comunicados - Gerente and Admin */}
+                <Route path="/config/comunicados" element={
+                  <ProtectedRoute requiredRoles={['gerente', 'admin']}>
+                    <ComunicadosAdmin />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/comunicados/novo" element={
+                  <ProtectedRoute requiredRoles={['gerente', 'admin']}>
+                    <ComunicadoForm />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/comunicados/:id" element={
+                  <ProtectedRoute requiredRoles={['gerente', 'admin']}>
+                    <ComunicadoForm />
                   </ProtectedRoute>
                 } />
               </Route>

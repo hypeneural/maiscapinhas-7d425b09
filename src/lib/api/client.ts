@@ -105,6 +105,14 @@ export async function apiPut<T, D = unknown>(url: string, data?: D): Promise<T> 
 }
 
 /**
+ * Helper to make PATCH requests with type safety
+ */
+export async function apiPatch<T, D = unknown>(url: string, data?: D): Promise<T> {
+    const response = await api.patch<T>(url, data);
+    return response.data;
+}
+
+/**
  * Helper to make DELETE requests with type safety
  */
 export async function apiDelete<T>(url: string): Promise<T> {

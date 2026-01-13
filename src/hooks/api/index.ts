@@ -24,3 +24,9 @@ export {
 
 // Note: for report hooks (useRanking, useStorePerformance, etc.),
 // import directly from './use-reports' to avoid naming conflicts
+
+// New hooks
+export * from './use-customers';
+export * from './use-phone-catalog';
+export * from './use-pedidos';
+export * from './use-capas';

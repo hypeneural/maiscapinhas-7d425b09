@@ -1,0 +1,151 @@
+/**
+ * Pedidos Types
+ * 
+ * TypeScript types for pedidos (orders) API endpoints.
+ */
+
+import type { CustomerDevice } from './customers.types';
+
+// ============================================================
+// Status Types
+// ============================================================
+
+/**
+ * Pedido status values
+ */
+export type PedidoStatus = 1 | 2 | 3 | 4 | 5;
+
+/**
+ * Status history entry
+ */
+export interface PedidoStatusHistory {
+    id: number;
+    old_status: PedidoStatus | null;
+    old_status_label: string | null;
+    new_status: PedidoStatus;
+    new_status_label: string;
+    changed_by: {
+        id: number;
+        name: string;
+    };
+    changed_at: string;
+    source: 'api' | 'bulk' | 'system' | null;
+    reason: string | null;
+}
+
+// ============================================================
+// Pedido
+// ============================================================
+
+/**
+ * Pedido response from API
+ */
+export interface Pedido {
+    id: number;
+    selected_product: string;
+    obs: string | null;
+    status: PedidoStatus;
+    status_label: string;
+    status_color: string;
+    store?: {
+        id: number;
+        name: string;
+        city: string;
+    };
+    store_id: number;
+    user?: {
+        id: number;
+        name: string;
+    };
+    user_id: number;
+    customer?: {
+        id: number;
+        name: string;
+        email: string;
+        phone: string | null;
+    };
+    customer_id: number;
+    customer_device?: CustomerDevice;
+    customer_device_id: number | null;
+    status_history?: PedidoStatusHistory[];
+    created_at: string;
+    updated_at: string;
+}
+
+/**
+ * Request to create pedido
+ */
+export interface CreatePedidoRequest {
+    customer_id: number;
+    selected_product: string;
+    store_id?: number;
+    user_id?: number;
+    customer_device_id?: number;
+    obs?: string;
+    status?: PedidoStatus;
+}
+
+/**
+ * Request to update pedido
+ */
+export interface UpdatePedidoRequest {
+    customer_id?: number;
+    selected_product?: string;
+    customer_device_id?: number | null;
+    obs?: string | null;
+    status?: PedidoStatus;
+}
+
+/**
+ * Request to update pedido status
+ */
+export interface UpdatePedidoStatusRequest {
+    status: PedidoStatus;
+    reason?: string;
+}
+
+/**
+ * Request to bulk update pedido status
+ */
+export interface BulkPedidoStatusRequest {
+    ids: number[];
+    status: PedidoStatus;
+}
+
+/**
+ * Bulk status update response
+ */
+export interface BulkStatusResponse {
+    message: string;
+    data: {
+        updated: number;
+        skipped: number;
+        errors: Array<{
+            id: number;
+            error: string;
+        }>;
+    };
+}
+
+// ============================================================
+// Filters
+// ============================================================
+
+/**
+ * Pedido list filters
+ */
+export interface PedidoFilters {
+    store_id?: number;
+    user_id?: number;
+    status?: PedidoStatus;
+    customer_id?: number;
+    initial_date?: string;
+    final_date?: string;
+    brand_id?: number;
+    model_id?: number;
+    keyword?: string;
+    page?: number;
+    per_page?: number;
+    sort?: string;
+    direction?: 'asc' | 'desc';
+}
