@@ -82,6 +82,9 @@ function UsersTab() {
   // Modal state for quick linking
   const [selectedUserForStores, setSelectedUserForStores] = useState<AdminUserResponse | null>(null);
 
+  // Modal state for viewing linked stores
+  const [selectedUserForViewStores, setSelectedUserForViewStores] = useState<AdminUserResponse | null>(null);
+
   // Advanced filters
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'fabrica' | 'super_admin'>('all');
@@ -146,13 +149,35 @@ function UsersTab() {
                   Fábrica
                 </Badge>
               )}
-              {/* Store badges */}
+              {/* Store badges - clickable to view all */}
               {user.stores.length > 0 ? (
-                user.stores.slice(0, user.has_fabrica_access ? 1 : 2).map((s, i) => (
-                  <Badge key={i} variant="outline" className={ROLE_COLORS[s.role]}>
-                    {s.store_name.length > 12 ? s.store_name.slice(0, 12) + '...' : s.store_name}
-                  </Badge>
-                ))
+                <>
+                  {user.stores.slice(0, user.has_fabrica_access ? 1 : 2).map((s, i) => (
+                    <Badge
+                      key={i}
+                      variant="outline"
+                      className={`${ROLE_COLORS[s.role]} cursor-pointer hover:opacity-80`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedUserForViewStores(user);
+                      }}
+                    >
+                      {s.store_name.length > 12 ? s.store_name.slice(0, 12) + '...' : s.store_name}
+                    </Badge>
+                  ))}
+                  {user.stores.length > (user.has_fabrica_access ? 1 : 2) && (
+                    <Badge
+                      variant="secondary"
+                      className="cursor-pointer hover:opacity-80"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedUserForViewStores(user);
+                      }}
+                    >
+                      +{user.stores.length - (user.has_fabrica_access ? 1 : 2)}
+                    </Badge>
+                  )}
+                </>
               ) : !user.has_fabrica_access && (
                 <TooltipProvider>
                   <Tooltip>
@@ -175,9 +200,6 @@ function UsersTab() {
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-              )}
-              {user.stores.length > (user.has_fabrica_access ? 1 : 2) && (
-                <Badge variant="secondary">+{user.stores.length - (user.has_fabrica_access ? 1 : 2)}</Badge>
               )}
             </>
           )}
@@ -321,6 +343,16 @@ function UsersTab() {
           onOpenChange={(open) => !open && setSelectedUserForStores(null)}
         />
       )}
+
+      {/* View Linked Stores Modal */}
+      {selectedUserForViewStores && (
+        <ViewLinkedStoresModal
+          userName={selectedUserForViewStores.name}
+          stores={selectedUserForViewStores.stores}
+          open={!!selectedUserForViewStores}
+          onOpenChange={(open) => !open && setSelectedUserForViewStores(null)}
+        />
+      )}
     </div>
   );
 }
@@ -337,6 +369,9 @@ function StoresTab() {
 
   // Modal state for quick linking
   const [selectedStoreForUsers, setSelectedStoreForUsers] = useState<AdminStoreResponse | null>(null);
+
+  // Modal state for viewing linked users
+  const [selectedStoreForViewUsers, setSelectedStoreForViewUsers] = useState<AdminStoreResponse | null>(null);
 
   const { data: storesData, isLoading } = useAdminStores({ search, page, per_page: 25 });
   const deactivateMutation = useDeactivateStore();
@@ -378,7 +413,14 @@ function StoresTab() {
       render: (value, store) => {
         const count = (value as number) || 0;
         return count > 0 ? (
-          <Badge variant="secondary">
+          <Badge
+            variant="secondary"
+            className="cursor-pointer hover:opacity-80"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedStoreForViewUsers(store);
+            }}
+          >
             {count} usuários
           </Badge>
         ) : (
@@ -503,6 +545,16 @@ function StoresTab() {
           existingUserIds={selectedStoreForUsers.users?.map(u => u.user_id) || []}
           open={!!selectedStoreForUsers}
           onOpenChange={(open) => !open && setSelectedStoreForUsers(null)}
+        />
+      )}
+
+      {/* View Linked Users Modal */}
+      {selectedStoreForViewUsers && (
+        <ViewLinkedUsersModal
+          storeName={selectedStoreForViewUsers.name}
+          users={selectedStoreForViewUsers.users || []}
+          open={!!selectedStoreForViewUsers}
+          onOpenChange={(open) => !open && setSelectedStoreForViewUsers(null)}
         />
       )}
     </div>

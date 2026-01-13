@@ -158,20 +158,28 @@ export interface UpdateCustomerRequest {
 // ============================================================
 
 /**
+ * Valid sort fields for customers
+ */
+export type CustomerSortField = 'id' | 'name' | 'email' | 'phone' | 'city' | 'state' | 'created_at' | 'updated_at';
+
+/**
  * Customer list filters
  */
 export interface CustomerFilters {
+    keyword?: string;           // NOVO: Busca unificada em nome, email, telefone
     name?: string;
     email?: string;
     phone?: string;
     city?: string;
     state?: string;
+    initial_date?: string;      // NOVO: Data inicial cadastro (YYYY-MM-DD)
+    final_date?: string;        // NOVO: Data final cadastro (YYYY-MM-DD)
     has_device?: 0 | 1;
     brand_id?: number;
     model_id?: number;
     page?: number;
     per_page?: number;
-    sort?: string;
+    sort?: CustomerSortField;
     direction?: 'asc' | 'desc';
 }
 

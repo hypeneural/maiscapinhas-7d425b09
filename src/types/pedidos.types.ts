@@ -132,20 +132,26 @@ export interface BulkStatusResponse {
 // ============================================================
 
 /**
+ * Valid sort fields for pedidos
+ */
+export type PedidoSortField = 'id' | 'created_at' | 'updated_at' | 'status' | 'selected_product' | 'store_id' | 'user_id';
+
+/**
  * Pedido list filters
  */
 export interface PedidoFilters {
+    keyword?: string;                        // Busca em ID, produto, obs, cliente
+    status?: PedidoStatus | PedidoStatus[];  // Aceita múltiplos status
     store_id?: number;
     user_id?: number;
-    status?: PedidoStatus;
     customer_id?: number;
-    initial_date?: string;
-    final_date?: string;
+    initial_date?: string;                   // YYYY-MM-DD
+    final_date?: string;                     // YYYY-MM-DD
     brand_id?: number;
     model_id?: number;
-    keyword?: string;
     page?: number;
     per_page?: number;
-    sort?: string;
+    sort?: PedidoSortField;
     direction?: 'asc' | 'desc';
 }
+

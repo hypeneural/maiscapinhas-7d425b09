@@ -12,8 +12,9 @@ import type { CustomerDevice } from './customers.types';
 
 /**
  * Capa status values
+ * 7 = No Carrinho de Produção
  */
-export type CapaStatus = 1 | 2 | 3 | 4 | 5 | 6;
+export type CapaStatus = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 // ============================================================
 // Capa Personalizada
@@ -190,23 +191,29 @@ export interface PublicUploadResponse {
 // ============================================================
 
 /**
+ * Valid sort fields for capas
+ */
+export type CapaSortField = 'id' | 'created_at' | 'updated_at' | 'status' | 'selected_product' | 'price' | 'qty' | 'payday' | 'sended_to_production_at' | 'store_id' | 'user_id';
+
+/**
  * Capa list filters
  */
 export interface CapaFilters {
+    keyword?: string;                      // Busca em ID, produto, ref, obs, cliente
+    status?: CapaStatus | CapaStatus[];    // Aceita múltiplos status
     store_id?: number;
     user_id?: number;
-    status?: CapaStatus;
     customer_id?: number;
-    initial_date?: string;
-    final_date?: string;
+    initial_date?: string;                 // YYYY-MM-DD
+    final_date?: string;                   // YYYY-MM-DD
     brand_id?: number;
     model_id?: number;
-    keyword?: string;
     payed?: 0 | 1;
     payday?: string;
     received_by_id?: number;
     page?: number;
     per_page?: number;
-    sort?: string;
+    sort?: CapaSortField;
     direction?: 'asc' | 'desc';
 }
+

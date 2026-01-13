@@ -905,7 +905,7 @@ const CapaForm: React.FC = () => {
                             ) : (
                                 <Save className="h-4 w-4" />
                             )}
-                            {isEditing ? 'Salvar Alterações' : 'Criar Capa'}
+                            {isEditing ? 'Salvar Alterações' : 'Encomendar Capa'}
                         </Button>
                     </div>
                 </form>
