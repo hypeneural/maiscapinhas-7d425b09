@@ -9,6 +9,7 @@ export { storesService, default as storesServiceDefault } from './stores.service
 export { goalsService, default as goalsServiceDefault } from './goals.service';
 export { rulesService, bonusRulesService, commissionRulesService, default as rulesServiceDefault } from './rules.service';
 export { auditService, default as auditServiceDefault } from './audit.service';
+export { whatsAppInstancesService, default as whatsAppInstancesServiceDefault } from './whatsapp-instances.service';
 
 // Re-export all service functions for direct import if needed
 export * from './users.service';
@@ -16,3 +17,4 @@ export * from './stores.service';
 export * from './goals.service';
 export * from './rules.service';
 export * from './audit.service';
+export * from './whatsapp-instances.service';

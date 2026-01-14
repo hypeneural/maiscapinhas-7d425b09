@@ -109,6 +109,35 @@ export interface UpdateCapaRequest {
  */
 export interface UpdateCapaStatusRequest {
     status: CapaStatus;
+    /**
+     * Enviar notificação WhatsApp ao cliente
+     * Só tem efeito quando status = 3 (Disponível na Loja)
+     * @optional - default: false
+     */
+    notify_whatsapp?: boolean;
+}
+
+/**
+ * WhatsApp notification result
+ * Only present when notify_whatsapp=true was sent in request
+ */
+export interface WhatsAppNotificationResult {
+    /** Se a mensagem foi enviada com sucesso */
+    sent: boolean;
+    /** Telefone mascarado (ex: "****9999") - null se cliente não tem telefone */
+    phone: string | null;
+    /** Mensagem de erro (só presente quando sent=false) */
+    error?: string;
+}
+
+/**
+ * Response from status update with optional WhatsApp notification
+ */
+export interface UpdateCapaStatusResponse {
+    message: string;
+    data: CapaPersonalizada;
+    /** Resultado da notificação WhatsApp - só presente quando notify_whatsapp=true */
+    whatsapp_notification?: WhatsAppNotificationResult;
 }
 
 /**

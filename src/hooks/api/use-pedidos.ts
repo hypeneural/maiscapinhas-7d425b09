@@ -117,6 +117,8 @@ export function useDeletePedido() {
 
 /**
  * Hook to update pedido status (single)
+ * Now returns full response including WhatsApp notification result
+ * Toast is not shown automatically - component should handle feedback
  */
 export function useUpdatePedidoStatus() {
     const queryClient = useQueryClient();
@@ -124,10 +126,10 @@ export function useUpdatePedidoStatus() {
     return useMutation({
         mutationFn: ({ id, data }: { id: number; data: UpdatePedidoStatusRequest }) =>
             pedidosService.updateStatus(id, data),
-        onSuccess: (pedido) => {
+        onSuccess: (response) => {
             queryClient.invalidateQueries({ queryKey: pedidosKeys.lists() });
-            queryClient.invalidateQueries({ queryKey: pedidosKeys.detail(pedido.id) });
-            toast.success(`Status alterado para "${pedido.status_label}"`);
+            queryClient.invalidateQueries({ queryKey: pedidosKeys.detail(response.data.id) });
+            // Toast removed - component handles feedback based on notification result
         },
         onError: (error) => {
             handleApiError(error);

@@ -266,6 +266,12 @@ export const menuSections: MenuSection[] = [
                 icon: Smartphone,
                 path: '/config/catalogo',
             },
+            {
+                id: 'whatsapp-instances',
+                label: 'Instâncias WhatsApp',
+                icon: MessageSquare,
+                path: '/config/whatsapp',
+            },
         ],
     },
 

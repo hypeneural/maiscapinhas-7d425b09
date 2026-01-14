@@ -60,6 +60,10 @@ const CustomerUpload = lazy(() => import("@/pages/upload/CustomerUpload"));
 // Phone Catalog (Admin)
 const PhoneCatalog = lazy(() => import("@/pages/config/PhoneCatalog"));
 
+// WhatsApp Instances (Super Admin)
+const WhatsAppInstances = lazy(() => import("@/pages/config/WhatsAppInstances"));
+const WhatsAppInstanceForm = lazy(() => import("@/pages/config/WhatsAppInstanceForm"));
+
 // Comunicados
 const Comunicados = lazy(() => import("@/pages/comunicados/Comunicados"));
 const ComunicadosAdmin = lazy(() => import("@/pages/config/comunicados/ComunicadosAdmin"));
@@ -277,6 +281,18 @@ const App = () => (
                 <Route path="/config/catalogo" element={
                   <ProtectedRoute requiredRoles={['admin']}>
                     <PhoneCatalog />
+                  </ProtectedRoute>
+                } />
+
+                {/* WhatsApp Instances - Super Admin */}
+                <Route path="/config/whatsapp" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WhatsAppInstances />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/whatsapp/:id" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WhatsAppInstanceForm />
                   </ProtectedRoute>
                 } />
 

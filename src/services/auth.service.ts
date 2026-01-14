@@ -115,3 +115,39 @@ export async function changePassword(data: {
 }): Promise<void> {
     await apiPut('/auth/password', data);
 }
+
+/**
+ * Response from WhatsApp forgot password endpoint
+ */
+export interface ForgotPasswordWhatsAppResponse {
+    message: string;
+    phone_masked: string;
+    expires_in_minutes: number;
+}
+
+/**
+ * Request password reset via WhatsApp
+ * Sends a 6-digit code to the user's registered WhatsApp number
+ */
+export async function forgotPasswordWhatsApp(data: {
+    email?: string;
+    whatsapp?: string;
+}): Promise<ForgotPasswordWhatsAppResponse> {
+    const response = await apiPost<ApiResponse<ForgotPasswordWhatsAppResponse>>(
+        '/auth/forgot-password/whatsapp',
+        data
+    );
+    return response.data;
+}
+
+/**
+ * Reset password using a 6-digit code sent via WhatsApp
+ */
+export async function resetPasswordWithCode(data: {
+    code: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+}): Promise<void> {
+    await apiPost('/auth/reset-password/code', data);
+}

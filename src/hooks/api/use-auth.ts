@@ -13,7 +13,10 @@ import {
     getCurrentUser,
     forgotPassword,
     resetPassword,
-    changePassword
+    changePassword,
+    forgotPasswordWhatsApp,
+    resetPasswordWithCode,
+    type ForgotPasswordWhatsAppResponse,
 } from '@/services/auth.service';
 import { handleApiError, ApiError, isApiError, getToken } from '@/lib/api';
 import {
@@ -187,6 +190,40 @@ export function useChangePassword() {
         mutationFn: changePassword,
         onSuccess: () => {
             toast.success('Senha alterada com sucesso!');
+        },
+        onError: (error) => {
+            handleApiError(error);
+        },
+    });
+}
+
+/**
+ * Hook to request password reset via WhatsApp
+ * Sends a 6-digit code to the user's registered WhatsApp number
+ */
+export function useForgotPasswordWhatsApp() {
+    return useMutation({
+        mutationFn: forgotPasswordWhatsApp,
+        onSuccess: (data: ForgotPasswordWhatsAppResponse) => {
+            toast.success(`Código enviado para o WhatsApp ${data.phone_masked}!`);
+        },
+        onError: (error) => {
+            handleApiError(error);
+        },
+    });
+}
+
+/**
+ * Hook to reset password using a 6-digit code
+ */
+export function useResetPasswordWithCode() {
+    const navigate = useNavigate();
+
+    return useMutation({
+        mutationFn: resetPasswordWithCode,
+        onSuccess: () => {
+            toast.success('Senha alterada com sucesso! Faça login com a nova senha.');
+            navigate('/login', { replace: true });
         },
         onError: (error) => {
             handleApiError(error);

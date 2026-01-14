@@ -118,6 +118,8 @@ export function useDeleteCapa() {
 
 /**
  * Hook to update capa status (single)
+ * Now returns full response including WhatsApp notification result
+ * Toast is not shown automatically - component should handle feedback
  */
 export function useUpdateCapaStatus() {
     const queryClient = useQueryClient();
@@ -125,10 +127,10 @@ export function useUpdateCapaStatus() {
     return useMutation({
         mutationFn: ({ id, data }: { id: number; data: UpdateCapaStatusRequest }) =>
             capasService.updateStatus(id, data),
-        onSuccess: (capa) => {
+        onSuccess: (response) => {
             queryClient.invalidateQueries({ queryKey: capasKeys.lists() });
-            queryClient.invalidateQueries({ queryKey: capasKeys.detail(capa.id) });
-            toast.success(`Status alterado para "${capa.status_label}"`);
+            queryClient.invalidateQueries({ queryKey: capasKeys.detail(response.data.id) });
+            // Toast removed - component handles feedback based on notification result
         },
         onError: (error) => {
             handleApiError(error);

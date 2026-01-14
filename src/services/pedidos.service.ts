@@ -13,6 +13,7 @@ import type {
     CreatePedidoRequest,
     UpdatePedidoRequest,
     UpdatePedidoStatusRequest,
+    UpdatePedidoStatusResponse,
     BulkPedidoStatusRequest,
     BulkStatusResponse,
 } from '@/types/pedidos.types';
@@ -86,13 +87,14 @@ export async function deletePedido(id: number): Promise<void> {
 
 /**
  * Update pedido status (single)
+ * When status = 3 and notify_whatsapp = true, sends WhatsApp notification to customer
  */
 export async function updateStatus(
     id: number,
     data: UpdatePedidoStatusRequest
-): Promise<Pedido> {
-    const response = await apiPatch<ApiResponse<Pedido>>(`/pedidos/${id}/status`, data);
-    return response.data;
+): Promise<UpdatePedidoStatusResponse> {
+    const response = await apiPatch<UpdatePedidoStatusResponse>(`/pedidos/${id}/status`, data);
+    return response;
 }
 
 /**

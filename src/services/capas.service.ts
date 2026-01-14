@@ -13,6 +13,7 @@ import type {
     CreateCapaRequest,
     UpdateCapaRequest,
     UpdateCapaStatusRequest,
+    UpdateCapaStatusResponse,
     BulkCapaStatusRequest,
     BulkCapaStatusResponse,
     SendToProductionRequest,
@@ -100,16 +101,17 @@ export async function deleteCapa(id: number): Promise<void> {
 
 /**
  * Update capa status (single)
+ * When status = 3 and notify_whatsapp = true, sends WhatsApp notification to customer
  */
 export async function updateStatus(
     id: number,
     data: UpdateCapaStatusRequest
-): Promise<CapaPersonalizada> {
-    const response = await apiPatch<ApiResponse<CapaPersonalizada>>(
+): Promise<UpdateCapaStatusResponse> {
+    const response = await apiPatch<UpdateCapaStatusResponse>(
         `/capas-personalizadas/${id}/status`,
         data
     );
-    return response.data;
+    return response;
 }
 
 /**

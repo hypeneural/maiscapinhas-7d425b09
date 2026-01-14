@@ -21,6 +21,7 @@ import {
     Image,
     Package,
     CreditCard,
+    MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,8 +55,9 @@ import {
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { CAPA_STATUS_OPTIONS, getStatusColorClasses } from '@/lib/constants/status.constants';
+import { CAPA_STATUS_OPTIONS, CAPA_STATUS, getStatusColorClasses } from '@/lib/constants/status.constants';
 import type { CapaStatus } from '@/types/capas.types';
+import { toast } from 'sonner';
 
 const CapaDetail: React.FC = () => {
     const navigate = useNavigate();
@@ -65,6 +67,8 @@ const CapaDetail: React.FC = () => {
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [newStatus, setNewStatus] = useState<string>('');
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+    const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+    const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
     const [paymentData, setPaymentData] = useState({
         payed: true,
         payday: format(new Date(), 'yyyy-MM-dd'),
@@ -80,13 +84,63 @@ const CapaDetail: React.FC = () => {
         navigate('/capas');
     };
 
-    const handleStatusChange = async () => {
+    /**
+     * Handle status change button click
+     * If status 3 (Disponível na Loja) is selected, open WhatsApp notification modal
+     * Otherwise, update status directly
+     */
+    const handleStatusChangeClick = () => {
         if (!newStatus) return;
-        await updateStatusMutation.mutateAsync({
-            id: capaId,
-            data: { status: parseInt(newStatus, 10) as CapaStatus },
-        });
-        setNewStatus('');
+        const statusValue = parseInt(newStatus, 10);
+
+        // If status is "Disponível na Loja", show WhatsApp notification modal
+        if (statusValue === CAPA_STATUS.DISPONIVEL_LOJA) {
+            setIsWhatsAppModalOpen(true);
+        } else {
+            handleStatusChange(false);
+        }
+    };
+
+    /**
+     * Perform the actual status change
+     */
+    const handleStatusChange = async (shouldNotifyWhatsApp: boolean = false) => {
+        if (!newStatus) return;
+
+        const statusValue = parseInt(newStatus, 10) as CapaStatus;
+
+        try {
+            const response = await updateStatusMutation.mutateAsync({
+                id: capaId,
+                data: {
+                    status: statusValue,
+                    notify_whatsapp: statusValue === CAPA_STATUS.DISPONIVEL_LOJA ? shouldNotifyWhatsApp : undefined,
+                },
+            });
+
+            // Handle feedback based on notification result
+            if (response.whatsapp_notification) {
+                if (response.whatsapp_notification.sent) {
+                    toast.success(
+                        `Status atualizado! Notificação enviada para ${response.whatsapp_notification.phone}`,
+                        { duration: 5000 }
+                    );
+                } else {
+                    toast.warning(
+                        `Status atualizado, mas notificação não enviada: ${response.whatsapp_notification.error}`,
+                        { duration: 5000 }
+                    );
+                }
+            } else {
+                toast.success(`Status alterado para "${response.data.status_label}"`);
+            }
+
+            setNewStatus('');
+            setIsWhatsAppModalOpen(false);
+            setNotifyWhatsApp(true); // Reset for next time
+        } catch (error) {
+            // Error is handled by the mutation's onError
+        }
     };
 
     const handlePayment = async () => {
@@ -415,7 +469,7 @@ const CapaDetail: React.FC = () => {
                             </SelectContent>
                         </Select>
                         <Button
-                            onClick={handleStatusChange}
+                            onClick={handleStatusChangeClick}
                             disabled={!newStatus || updateStatusMutation.isPending}
                         >
                             {updateStatusMutation.isPending && (
@@ -499,6 +553,96 @@ const CapaDetail: React.FC = () => {
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             )}
                             Confirmar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* WhatsApp Notification Modal */}
+            <Dialog open={isWhatsAppModalOpen} onOpenChange={setIsWhatsAppModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <MessageSquare className="h-5 w-5 text-green-600" />
+                            Alterar Status da Capa
+                        </DialogTitle>
+                        <DialogDescription>
+                            Você está alterando o status para <strong>"Disponível na Loja"</strong>.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        {/* Customer info */}
+                        <div className="p-3 bg-muted rounded-lg">
+                            <div className="flex items-center gap-2 text-sm">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">{capa?.customer?.name || 'Cliente'}</span>
+                            </div>
+                            {capa?.customer?.phone ? (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                                    <Smartphone className="h-4 w-4" />
+                                    <span>{capa.customer.phone}</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 text-sm text-amber-600 mt-1">
+                                    <Smartphone className="h-4 w-4" />
+                                    <span>Cliente não possui telefone cadastrado</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Notify checkbox */}
+                        <div className="flex items-start gap-3 p-3 border rounded-lg">
+                            <Checkbox
+                                id="notify_whatsapp"
+                                checked={notifyWhatsApp}
+                                onCheckedChange={(checked) => setNotifyWhatsApp(checked as boolean)}
+                                disabled={!capa?.customer?.phone}
+                            />
+                            <div className="flex-1">
+                                <Label
+                                    htmlFor="notify_whatsapp"
+                                    className={cn(
+                                        "font-medium cursor-pointer",
+                                        !capa?.customer?.phone && "text-muted-foreground"
+                                    )}
+                                >
+                                    Notificar cliente por WhatsApp
+                                </Label>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    Será enviada uma mensagem informando que a capa está pronta para retirada.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setIsWhatsAppModalOpen(false);
+                                setNotifyWhatsApp(true); // Reset
+                            }}
+                            disabled={updateStatusMutation.isPending}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={() => handleStatusChange(notifyWhatsApp && !!capa?.customer?.phone)}
+                            disabled={updateStatusMutation.isPending}
+                            className="gap-2"
+                        >
+                            {updateStatusMutation.isPending && (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            )}
+                            {notifyWhatsApp && capa?.customer?.phone ? (
+                                <>
+                                    <MessageSquare className="h-4 w-4" />
+                                    Confirmar e Notificar
+                                </>
+                            ) : (
+                                'Confirmar Alteração'
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
