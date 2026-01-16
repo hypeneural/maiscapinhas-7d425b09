@@ -26,6 +26,10 @@ import {
     MessageSquare,
     Factory,
     ShoppingCart,
+    Shield,
+    Key,
+    Package,
+    Network,
     type LucideIcon,
 } from 'lucide-react';
 import type { Role, Permission } from '@/lib/permissions';
@@ -35,7 +39,16 @@ export interface MenuItem {
     label: string;
     icon: LucideIcon;
     path: string;
+    /** 
+     * Legacy permissions (e.g. 'dashboard:view')
+     * @deprecated Use apiPermission instead
+     */
     permissions?: Permission[];
+    /**
+     * API permission string from backend (e.g. 'screen.dashboard')
+     * Takes priority over permissions[] when checking access
+     */
+    apiPermission?: string;
     roles?: Role[];
     excludeRoles?: Role[];
     minRole?: Role;
@@ -47,6 +60,8 @@ export interface MenuSection {
     title: string;
     items: MenuItem[];
     permissions?: Permission[];
+    /** API permission for the entire section */
+    apiPermission?: string;
     roles?: Role[];
     excludeRoles?: Role[];
     minRole?: Role;
@@ -54,6 +69,12 @@ export interface MenuSection {
 
 /**
  * Complete menu configuration
+ * 
+ * Permission mapping (legacy -> new):
+ * - dashboard:view -> screen.dashboard
+ * - sales:view -> pedidos.view
+ * - capas.view -> screen.capas.list
+ * - users:manage -> admin.users.manage
  */
 export const menuSections: MenuSection[] = [
     // Dashboard - Everyone except fabrica
@@ -67,13 +88,15 @@ export const menuSections: MenuSection[] = [
                 label: 'Dashboard',
                 icon: LayoutDashboard,
                 path: '/',
-                permissions: ['dashboard:view'],
+                apiPermission: 'screen.dashboard',
+                permissions: ['dashboard:view'], // Legacy fallback
             },
             {
                 id: 'comunicados',
                 label: 'Comunicados',
                 icon: MessageSquare,
                 path: '/comunicados',
+                apiPermission: 'screen.comunicados',
             },
         ],
     },
@@ -89,18 +112,21 @@ export const menuSections: MenuSection[] = [
                 label: 'Clientes',
                 icon: Users,
                 path: '/clientes',
+                apiPermission: 'screen.clientes.list',
             },
             {
                 id: 'pedidos',
                 label: 'Pedidos',
                 icon: FileCheck,
                 path: '/pedidos',
+                apiPermission: 'screen.pedidos.list',
             },
             {
                 id: 'capas-personalizadas',
                 label: 'Capas Personalizadas',
                 icon: Palette,
                 path: '/capas',
+                apiPermission: 'screen.capas.list',
             },
         ],
     },
@@ -253,6 +279,34 @@ export const menuSections: MenuSection[] = [
         title: 'Administração',
         roles: ['admin'],
         items: [
+            {
+                id: 'modules',
+                label: 'Módulos',
+                icon: Package,
+                path: '/config/modules',
+                permissions: ['users:manage'],
+            },
+            {
+                id: 'roles',
+                label: 'Roles',
+                icon: Shield,
+                path: '/config/roles',
+                permissions: ['users:manage'],
+            },
+            {
+                id: 'permissions',
+                label: 'Permissões',
+                icon: Key,
+                path: '/config/permissoes',
+                permissions: ['users:manage'],
+            },
+            {
+                id: 'permission-graph',
+                label: 'Grafo de Permissões',
+                icon: Network,
+                path: '/config/permission-graph',
+                permissions: ['users:manage'],
+            },
             {
                 id: 'audit-logs',
                 label: 'Logs de Auditoria',

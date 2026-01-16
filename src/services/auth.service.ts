@@ -87,6 +87,17 @@ export async function getCurrentUser(): Promise<UserWithStores> {
 }
 
 /**
+ * Get user's accessible screens
+ * Consolidated endpoint that returns all screens the user can access
+ */
+import type { MeScreensResponse } from '@/types/screens.types';
+
+export async function getUserScreens(): Promise<MeScreensResponse> {
+    const response = await apiGet<ApiResponse<MeScreensResponse>>('/me/screens');
+    return response.data;
+}
+
+/**
  * Request password reset email
  */
 export async function forgotPassword(email: string): Promise<void> {

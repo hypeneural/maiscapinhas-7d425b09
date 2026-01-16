@@ -125,11 +125,62 @@ export interface LoginResponse {
 }
 
 /**
+ * Current store context (from /me)
+ */
+export interface CurrentStore {
+    id: number;
+    name: string;
+    slug: string;
+}
+
+/**
+ * Temporary permission (from /me)
+ */
+export interface TemporaryPermission {
+    permission: string;
+    expires_at: string;
+    granted_by: string;
+}
+
+/**
+ * Expiring soon permission (from /me)
+ */
+export interface ExpiringPermission {
+    permission: string;
+    expires_in_hours: number;
+}
+
+/**
+ * Dashboard layout configuration (from /me)
+ */
+export interface DashboardLayout {
+    widgets: string[];
+}
+
+/**
  * Current user response (GET /me) - Backend returns user and stores separately
  */
 export interface CurrentUserResponse {
     user: User;
     stores: UserStore[];
+
+    /** Current store context */
+    current_store?: CurrentStore;
+
+    /** All roles assigned to user */
+    roles?: string[];
+
+    /** All resolved permissions (abilities + screens + features) */
+    permissions?: string[];
+
+    /** Temporary permissions with expiration */
+    temporary_permissions?: TemporaryPermission[];
+
+    /** Permissions expiring soon (< 7 days) */
+    expiring_soon?: ExpiringPermission[];
+
+    /** Dashboard layout configuration */
+    dashboard_layout?: DashboardLayout;
 }
 
 // ============================================================

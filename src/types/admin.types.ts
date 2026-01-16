@@ -17,6 +17,51 @@ export type GlobalRole = 'fabrica';
 /** Store-specific roles */
 export type StoreRole = UserRole;
 
+/**
+ * Role entity from GET /admin/roles/available
+ * All roles are unified - global vs store-specific is determined by store_id
+ */
+export interface Role {
+    id: number;
+    name: string;           // 'super-admin', 'admin', 'gerente', etc
+    display_name: string;   // 'Super Admin', 'Administrador', etc
+    level: number;          // Hierarchy level (100=highest, 20=lowest)
+}
+
+/**
+ * Role assignment - links a user to a role, optionally for a specific store
+ * store_id = null means global role
+ */
+export interface RoleAssignment {
+    role_id: number;
+    store_id: number | null;  // null = global, number = store-specific
+}
+
+/**
+ * Effective role assignment with display info (from user response)
+ */
+export interface EffectiveRoleAssignment extends RoleAssignment {
+    role_name: string;
+    role_display_name: string;
+    store_name?: string;
+}
+
+/**
+ * Request to sync all user roles (PUT /admin/users/{id}/roles/sync)
+ * This replaces all existing role assignments
+ */
+export interface SyncRolesRequest {
+    assignments: RoleAssignment[];
+}
+
+/**
+ * Request to add a single role (POST /admin/users/{id}/roles)
+ */
+export interface AddRoleRequest {
+    role_id: number;
+    store_id: number | null;
+}
+
 // ============================================================
 // Admin Users
 // ============================================================

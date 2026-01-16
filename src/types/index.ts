@@ -117,4 +117,5 @@ export interface DashboardAdmin {
 export * from './customers.types';
 export * from './pedidos.types';
 export * from './capas.types';
-
+export * from './permissions.types';
+export * from './modules.types';

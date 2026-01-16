@@ -249,3 +249,29 @@ export function useSyncStores(userId: number) {
     });
 }
 
+// ============================================================
+// Roles
+// ============================================================
+
+import { rolesService } from '@/services/admin/roles.service';
+
+/**
+ * Query keys for roles
+ */
+export const rolesKeys = {
+    all: ['admin', 'roles'] as const,
+    available: () => [...rolesKeys.all, 'available'] as const,
+    userRoles: (userId: number) => [...rolesKeys.all, 'user', userId] as const,
+};
+
+/**
+ * Hook to get available roles with hierarchy levels
+ * GET /admin/roles/available
+ */
+export function useRolesAvailable() {
+    return useQuery({
+        queryKey: rolesKeys.available(),
+        queryFn: () => rolesService.getAvailableRoles(),
+        staleTime: 5 * 60 * 1000, // 5 minutes - roles rarely change
+    });
+}

@@ -34,14 +34,14 @@ export async function listBrands(
     if (filters?.page) params.page = filters.page;
     if (filters?.per_page) params.per_page = filters.per_page;
 
-    return apiGet<PaginatedResponse<PhoneBrand>>('/phone-brands', params);
+    return apiGet<PaginatedResponse<PhoneBrand>>('/phone-catalog/brands', params);
 }
 
 /**
  * Get a single phone brand by ID
  */
 export async function getBrand(id: number): Promise<PhoneBrand> {
-    const response = await apiGet<ApiResponse<PhoneBrand>>(`/phone-brands/${id}`);
+    const response = await apiGet<ApiResponse<PhoneBrand>>(`/phone-catalog/brands/${id}`);
     return response.data;
 }
 
@@ -49,7 +49,7 @@ export async function getBrand(id: number): Promise<PhoneBrand> {
  * Create a new phone brand (Admin only)
  */
 export async function createBrand(data: CreatePhoneBrandRequest): Promise<PhoneBrand> {
-    const response = await apiPost<ApiResponse<PhoneBrand>>('/phone-brands', data);
+    const response = await apiPost<ApiResponse<PhoneBrand>>('/phone-catalog/brands', data);
     return response.data;
 }
 
@@ -60,7 +60,7 @@ export async function updateBrand(
     id: number,
     data: UpdatePhoneBrandRequest
 ): Promise<PhoneBrand> {
-    const response = await apiPut<ApiResponse<PhoneBrand>>(`/phone-brands/${id}`, data);
+    const response = await apiPut<ApiResponse<PhoneBrand>>(`/phone-catalog/brands/${id}`, data);
     return response.data;
 }
 
@@ -68,7 +68,7 @@ export async function updateBrand(
  * Delete a phone brand (Admin only)
  */
 export async function deleteBrand(id: number): Promise<void> {
-    await apiDelete(`/phone-brands/${id}`);
+    await apiDelete(`/phone-catalog/brands/${id}`);
 }
 
 // ============================================================
@@ -90,14 +90,14 @@ export async function listModels(
     if (filters?.page) params.page = filters.page;
     if (filters?.per_page) params.per_page = filters.per_page;
 
-    return apiGet<PaginatedResponse<PhoneModel>>('/phone-models', params);
+    return apiGet<PaginatedResponse<PhoneModel>>('/phone-catalog/models', params);
 }
 
 /**
  * Get a single phone model by ID
  */
 export async function getModel(id: number): Promise<PhoneModel> {
-    const response = await apiGet<ApiResponse<PhoneModel>>(`/phone-models/${id}`);
+    const response = await apiGet<ApiResponse<PhoneModel>>(`/phone-catalog/models/${id}`);
     return response.data;
 }
 
@@ -105,7 +105,7 @@ export async function getModel(id: number): Promise<PhoneModel> {
  * Create a new phone model (Admin only)
  */
 export async function createModel(data: CreatePhoneModelRequest): Promise<PhoneModel> {
-    const response = await apiPost<ApiResponse<PhoneModel>>('/phone-models', data);
+    const response = await apiPost<ApiResponse<PhoneModel>>('/phone-catalog/models', data);
     return response.data;
 }
 
@@ -116,7 +116,7 @@ export async function updateModel(
     id: number,
     data: UpdatePhoneModelRequest
 ): Promise<PhoneModel> {
-    const response = await apiPut<ApiResponse<PhoneModel>>(`/phone-models/${id}`, data);
+    const response = await apiPut<ApiResponse<PhoneModel>>(`/phone-catalog/models/${id}`, data);
     return response.data;
 }
 
@@ -124,7 +124,7 @@ export async function updateModel(
  * Delete a phone model (Admin only)
  */
 export async function deleteModel(id: number): Promise<void> {
-    await apiDelete(`/phone-models/${id}`);
+    await apiDelete(`/phone-catalog/models/${id}`);
 }
 
 // ============================================================

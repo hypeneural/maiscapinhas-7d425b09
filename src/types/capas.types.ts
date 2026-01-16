@@ -117,18 +117,10 @@ export interface UpdateCapaStatusRequest {
     notify_whatsapp?: boolean;
 }
 
-/**
- * WhatsApp notification result
- * Only present when notify_whatsapp=true was sent in request
- */
-export interface WhatsAppNotificationResult {
-    /** Se a mensagem foi enviada com sucesso */
-    sent: boolean;
-    /** Telefone mascarado (ex: "****9999") - null se cliente não tem telefone */
-    phone: string | null;
-    /** Mensagem de erro (só presente quando sent=false) */
-    error?: string;
-}
+import type { WhatsAppNotificationResult } from './pedidos.types';
+
+// Re-export for convenience
+export type { WhatsAppNotificationResult };
 
 /**
  * Response from status update with optional WhatsApp notification

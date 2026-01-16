@@ -36,6 +36,12 @@ const UsuariosLojas = lazy(() => import("@/pages/config/UsuariosLojas"));
 const UserForm = lazy(() => import("@/pages/config/UserForm"));
 const StoreForm = lazy(() => import("@/pages/config/StoreForm"));
 const Auditoria = lazy(() => import("@/pages/config/Auditoria"));
+const Roles = lazy(() => import("@/pages/config/Roles"));
+const RoleForm = lazy(() => import("@/pages/config/RoleForm"));
+const Permissions = lazy(() => import("@/pages/config/Permissions"));
+const Modules = lazy(() => import("@/pages/config/Modules"));
+const ModuleDetail = lazy(() => import("@/pages/config/ModuleDetail"));
+const PermissionGraph = lazy(() => import("@/pages/config/PermissionGraph"));
 const Unauthorized = lazy(() => import("@/pages/Unauthorized"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
@@ -271,6 +277,44 @@ const App = () => (
                 <Route path="/config/lojas/:id" element={
                   <ProtectedRoute requiredRoles={['admin']}>
                     <StoreForm />
+                  </ProtectedRoute>
+                } />
+                {/* Roles - Admin */}
+                <Route path="/config/roles" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <Roles />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/roles/novo" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <RoleForm />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/roles/:id" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <RoleForm />
+                  </ProtectedRoute>
+                } />
+                {/* Permissions - Admin */}
+                <Route path="/config/permissoes" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <Permissions />
+                  </ProtectedRoute>
+                } />
+                {/* Modules - Admin */}
+                <Route path="/config/modules" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <Modules />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/modules/:id" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <ModuleDetail />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/permission-graph" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <PermissionGraph />
                   </ProtectedRoute>
                 } />
                 <Route path="/config/auditoria" element={

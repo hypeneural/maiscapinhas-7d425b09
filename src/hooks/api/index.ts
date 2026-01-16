@@ -30,3 +30,8 @@ export * from './use-customers';
 export * from './use-phone-catalog';
 export * from './use-pedidos';
 export * from './use-capas';
+
+// Modular permission system hooks
+export * from './use-modules';
+export * from './use-admin-permissions';
+export * from './use-roles';

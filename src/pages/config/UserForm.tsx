@@ -10,7 +10,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft, Save, Loader2, User, Mail, Lock, Phone, Instagram,
     Wallet, Calendar, Briefcase, CreditCard, Crown, CheckCircle, Upload, Trash2,
-    Home, MapPin, Flag, Search, Factory, Store, Plus, X, Users
+    Home, MapPin, Flag, Search, Factory, Store, Plus, X, Users, Zap, Key
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,8 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { AddStoresToUserModal } from '@/components/admin/AddStoresToUserModal';
+import UserPermissionsTab from '@/components/admin/UserPermissionsTab';
+import UserRolesTab from '@/components/admin/UserRolesTab';
 
 // ============================================================
 // Helper Functions
@@ -875,6 +877,42 @@ const UserForm: React.FC = () => {
                                         </Table>
                                     </div>
                                 )}
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Permissions Tab - Only show when editing */}
+                    {isEditing && userId && (
+                        <Card>
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Zap className="h-5 w-5 text-primary" />
+                                    Permissões
+                                </CardTitle>
+                                <CardDescription>
+                                    Overrides de permissões específicas para este usuário
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <UserPermissionsTab userId={userId} />
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Roles Tab - Only show when editing */}
+                    {isEditing && userId && (
+                        <Card>
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Key className="h-5 w-5 text-primary" />
+                                    Roles
+                                </CardTitle>
+                                <CardDescription>
+                                    Roles atribuídas por loja
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <UserRolesTab userId={userId} />
                             </CardContent>
                         </Card>
                     )}

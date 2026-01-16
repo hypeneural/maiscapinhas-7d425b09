@@ -23,14 +23,14 @@ import type {
 
 export const phoneCatalogKeys = {
     brands: {
-        all: ['phone-brands'] as const,
+        all: ['phone-catalog', 'brands'] as const,
         lists: () => [...phoneCatalogKeys.brands.all, 'list'] as const,
         list: (filters?: PhoneBrandFilters) => [...phoneCatalogKeys.brands.lists(), filters] as const,
         details: () => [...phoneCatalogKeys.brands.all, 'detail'] as const,
         detail: (id: number) => [...phoneCatalogKeys.brands.details(), id] as const,
     },
     models: {
-        all: ['phone-models'] as const,
+        all: ['phone-catalog', 'models'] as const,
         lists: () => [...phoneCatalogKeys.models.all, 'list'] as const,
         list: (filters?: PhoneModelFilters) => [...phoneCatalogKeys.models.lists(), filters] as const,
         details: () => [...phoneCatalogKeys.models.all, 'detail'] as const,
