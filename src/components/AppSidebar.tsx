@@ -74,7 +74,12 @@ const NavItemComponent: React.FC<{
       <Tooltip delayDuration={0}>
         <TooltipTrigger asChild>{content}</TooltipTrigger>
         <TooltipContent side="right" className="font-medium">
-          {item.label}
+          <div>
+            <p>{item.label}</p>
+            {item.tooltip && (
+              <p className="text-xs text-muted-foreground font-normal">{item.tooltip}</p>
+            )}
+          </div>
         </TooltipContent>
       </Tooltip>
     );

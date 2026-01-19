@@ -193,6 +193,34 @@ export async function updateRolePermissions(
     return response.data;
 }
 
+/**
+ * Sync role permissions (replace all)
+ * POST /admin/roles/{id}/permissions
+ */
+export interface SyncRolePermissionsRequest {
+    permissions: string[];
+}
+
+export interface SyncRolePermissionsResponse {
+    message: string;
+    data: {
+        role_id: number;
+        permissions: string[];
+        permissions_count: number;
+    };
+}
+
+export async function syncRolePermissions(
+    roleId: number,
+    permissions: string[]
+): Promise<SyncRolePermissionsResponse> {
+    const response = await api.post<SyncRolePermissionsResponse>(
+        `${BASE_URL}/roles/${roleId}/permissions`,
+        { permissions }
+    );
+    return response.data;
+}
+
 export const rolesService = {
     getRoles,
     getAvailableRoles,
@@ -207,6 +235,7 @@ export const rolesService = {
     // New v2.0
     cloneRole,
     updateRolePermissions,
+    syncRolePermissions,
 };
 
 export default rolesService;

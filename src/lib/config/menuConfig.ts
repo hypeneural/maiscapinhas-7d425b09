@@ -30,6 +30,8 @@ import {
     Key,
     Package,
     Network,
+    Tv,
+    Award,
     type LucideIcon,
 } from 'lucide-react';
 import type { Role, Permission } from '@/lib/permissions';
@@ -53,6 +55,11 @@ export interface MenuItem {
     excludeRoles?: Role[];
     minRole?: Role;
     children?: MenuItem[];
+    /**
+     * Descriptive tooltip text shown on hover (optional)
+     * If not provided, uses label as tooltip when sidebar is collapsed
+     */
+    tooltip?: string;
 }
 
 export interface MenuSection {
@@ -97,6 +104,13 @@ export const menuSections: MenuSection[] = [
                 icon: MessageSquare,
                 path: '/comunicados',
                 apiPermission: 'screen.comunicados',
+            },
+            {
+                id: 'comemoracoes',
+                label: 'Comemorações',
+                icon: Gift,
+                path: '/comemoracoes',
+                apiPermission: 'celebrations.view',
             },
         ],
     },
@@ -343,15 +357,89 @@ export const menuSections: MenuSection[] = [
             },
         ],
     },
+
+    // Wheel Module - Super Admin Only
+    {
+        id: 'wheel',
+        title: 'Roleta nas TVs',
+        roles: ['admin'],
+        items: [
+            {
+                id: 'wheel-dashboard',
+                label: 'Visão Geral',
+                tooltip: 'Painel com resumo de TVs, campanhas e giros',
+                icon: Target,
+                path: '/admin/wheel',
+                apiPermission: 'wheel.admin',
+            },
+            {
+                id: 'wheel-screens',
+                label: 'TVs e Totens',
+                tooltip: 'Gerenciar dispositivos que exibem a roleta',
+                icon: Tv,
+                path: '/admin/wheel/screens',
+                apiPermission: 'wheel.admin',
+            },
+            {
+                id: 'wheel-campaigns',
+                label: 'Campanhas',
+                tooltip: 'Criar e gerenciar promoções da roleta',
+                icon: Gift,
+                path: '/admin/wheel/campaigns',
+                apiPermission: 'wheel.admin',
+            },
+            {
+                id: 'wheel-prizes',
+                label: 'Prêmios',
+                tooltip: 'Catálogo de prêmios disponíveis',
+                icon: Award,
+                path: '/admin/wheel/prizes',
+                apiPermission: 'wheel.admin',
+            },
+            {
+                id: 'wheel-rules',
+                label: 'Regras',
+                tooltip: 'Regras de distribuição: cooldowns, limites e controles',
+                icon: Settings,
+                path: '/admin/wheel/rules',
+                apiPermission: 'wheel.admin',
+            },
+            {
+                id: 'wheel-players',
+                label: 'Jogadores',
+                tooltip: 'Pessoas que participaram da roleta',
+                icon: Users,
+                path: '/admin/wheel/players',
+                apiPermission: 'wheel.admin',
+            },
+            {
+                id: 'wheel-logs',
+                label: 'Eventos',
+                tooltip: 'Histórico de ações e ocorrências',
+                icon: ScrollText,
+                path: '/admin/wheel/logs',
+                apiPermission: 'wheel.admin',
+            },
+            {
+                id: 'wheel-analytics',
+                label: 'Relatórios',
+                tooltip: 'Estatísticas detalhadas de desempenho',
+                icon: BarChart3,
+                path: '/admin/wheel/analytics',
+                apiPermission: 'wheel.admin',
+            },
+        ],
+    },
 ];
 
 /**
  * Filter menu sections based on user permissions
+ * @param hasPermission - Function to check if user has a permission (uses API permissions from /me)
  * @param isSuperAdmin - If true, bypasses excludeRoles check (super admin sees everything)
  */
 export function filterMenuSections(
     sections: MenuSection[],
-    hasPermission: (p: Permission) => boolean,
+    hasPermission: (p: string) => boolean,
     hasRole: (r: Role) => boolean,
     hasMinRole: (r: Role) => boolean,
     isSuperAdmin: boolean = false
@@ -374,8 +462,12 @@ export function filterMenuSections(
                 if (!hasMinRole(section.minRole)) return false;
             }
 
-            // Check section permissions
-            if (section.permissions?.length) {
+            // Check section apiPermission first (new system)
+            if (section.apiPermission) {
+                if (!hasPermission(section.apiPermission)) return false;
+            }
+            // Fallback to legacy permissions
+            else if (section.permissions?.length) {
                 if (!section.permissions.some(hasPermission)) return false;
             }
 
@@ -399,8 +491,12 @@ export function filterMenuSections(
                     if (!hasMinRole(item.minRole)) return false;
                 }
 
-                // Check item permissions (any)
-                if (item.permissions?.length) {
+                // Check apiPermission first (new system) - takes priority
+                if (item.apiPermission) {
+                    if (!hasPermission(item.apiPermission)) return false;
+                }
+                // Fallback to legacy permissions (any)
+                else if (item.permissions?.length) {
                     if (!item.permissions.some(hasPermission)) return false;
                 }
 
@@ -409,3 +505,4 @@ export function filterMenuSections(
         }))
         .filter((section) => section.items.length > 0);
 }
+

@@ -2,9 +2,10 @@
  * Capa Detail Page
  * 
  * View capa details with photo, payment info, and status actions.
+ * Uses useStatusTransitions for role-based status change validation.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -52,6 +53,7 @@ import {
     useUpdateCapaStatus,
     useRegisterPayment,
 } from '@/hooks/api/use-capas';
+import { useStatusTransitions } from '@/hooks/use-status-transitions';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -78,6 +80,32 @@ const CapaDetail: React.FC = () => {
     const deleteMutation = useDeleteCapa();
     const updateStatusMutation = useUpdateCapaStatus();
     const registerPaymentMutation = useRegisterPayment();
+
+    // Use transition matrix to determine allowed status changes
+    const { allowedTransitions, isLoading: transitionsLoading } = useStatusTransitions({
+        moduleId: 'capas-personalizadas',
+        currentStatus: capa?.status ?? 0,
+    });
+
+    // Filter status options based on allowed transitions
+    const filteredStatusOptions = useMemo(() => {
+        if (!capa) return [];
+
+        // Get all status options except current status
+        const availableOptions = CAPA_STATUS_OPTIONS.filter(
+            opt => opt.value !== capa.status
+        );
+
+        // If we have transition data, filter by allowed transitions
+        if (allowedTransitions.length > 0) {
+            return availableOptions.filter(opt =>
+                allowedTransitions.includes(opt.value)
+            );
+        }
+
+        // Fallback: show all options if transitions not loaded yet
+        return availableOptions;
+    }, [capa, allowedTransitions]);
 
     const handleDelete = async () => {
         await deleteMutation.mutateAsync(capaId);
@@ -443,14 +471,22 @@ const CapaDetail: React.FC = () => {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex gap-4">
-                        <Select value={newStatus} onValueChange={setNewStatus}>
+                        <Select
+                            value={newStatus}
+                            onValueChange={setNewStatus}
+                            disabled={transitionsLoading || filteredStatusOptions.length === 0}
+                        >
                             <SelectTrigger className="flex-1">
-                                <SelectValue placeholder="Selecione o novo status" />
+                                <SelectValue placeholder={
+                                    transitionsLoading
+                                        ? "Carregando transições..."
+                                        : filteredStatusOptions.length === 0
+                                            ? "Nenhuma transição disponível"
+                                            : "Selecione o novo status"
+                                } />
                             </SelectTrigger>
                             <SelectContent>
-                                {CAPA_STATUS_OPTIONS.filter(
-                                    (opt) => opt.value !== capa.status
-                                ).map((option) => (
+                                {filteredStatusOptions.map((option) => (
                                     <SelectItem
                                         key={option.value}
                                         value={option.value.toString()}
@@ -470,7 +506,7 @@ const CapaDetail: React.FC = () => {
                         </Select>
                         <Button
                             onClick={handleStatusChangeClick}
-                            disabled={!newStatus || updateStatusMutation.isPending}
+                            disabled={!newStatus || updateStatusMutation.isPending || transitionsLoading}
                         >
                             {updateStatusMutation.isPending && (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

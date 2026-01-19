@@ -7,7 +7,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { permissionsService } from '@/services/admin';
-import type { AddPermissionOverrideRequest } from '@/types/permissions.types';
+import type { AddPermissionOverrideRequest, CreateStorePermissionOverrideRequest } from '@/types/permissions.types';
 
 // Query keys
 export const permissionKeys = {
@@ -133,7 +133,7 @@ export function useAddStorePermissionOverride() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ storeId, data }: { storeId: number; data: AddPermissionOverrideRequest }) =>
+        mutationFn: ({ storeId, data }: { storeId: number; data: CreateStorePermissionOverrideRequest }) =>
             permissionsService.addStorePermissionOverride(storeId, data),
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: permissionKeys.store(variables.storeId) });
@@ -160,6 +160,166 @@ export function useRemoveStorePermissionOverride() {
         },
         onError: (error: Error) => {
             toast.error('Erro ao revogar permissão', { description: error.message });
+        },
+    });
+}
+
+// ============================================================
+// New Hooks (v2.0)
+// ============================================================
+
+import type {
+    PermissionPreviewRequest,
+    BulkGrantPermissionsRequest,
+    CopyPermissionsRequest,
+} from '@/types/permissions.types';
+
+/**
+ * Hook to clear all user permission overrides
+ */
+export function useClearUserPermissionOverrides() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ userId, storeId }: { userId: number; storeId?: number }) =>
+            permissionsService.clearUserPermissionOverrides(userId, storeId),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: permissionKeys.user(variables.userId) });
+            queryClient.invalidateQueries({ queryKey: permissionKeys.userEffective(variables.userId) });
+            toast.success('Overrides removidos');
+        },
+        onError: (error: Error) => {
+            toast.error('Erro ao limpar overrides', { description: error.message });
+        },
+    });
+}
+
+/**
+ * Hook to preview permission changes before applying
+ */
+export function usePreviewPermissionChanges() {
+    return useMutation({
+        mutationFn: (data: PermissionPreviewRequest) =>
+            permissionsService.previewPermissionChanges(data),
+        onError: (error: Error) => {
+            toast.error('Erro ao prever mudanças', { description: error.message });
+        },
+    });
+}
+
+/**
+ * Hook to bulk grant permissions to multiple users
+ */
+export function useBulkGrantPermissions() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (data: BulkGrantPermissionsRequest) =>
+            permissionsService.bulkGrantPermissions(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: permissionKeys.all });
+            toast.success('Permissões concedidas em lote');
+        },
+        onError: (error: Error) => {
+            toast.error('Erro ao conceder permissões', { description: error.message });
+        },
+    });
+}
+
+/**
+ * Hook to copy permissions from one user to another
+ */
+export function useCopyUserPermissions() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ targetUserId, sourceUserId, data }: {
+            targetUserId: number;
+            sourceUserId: number;
+            data?: CopyPermissionsRequest;
+        }) => permissionsService.copyUserPermissions(targetUserId, sourceUserId, data),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: permissionKeys.user(variables.targetUserId) });
+            queryClient.invalidateQueries({ queryKey: permissionKeys.userEffective(variables.targetUserId) });
+            toast.success('Permissões copiadas');
+        },
+        onError: (error: Error) => {
+            toast.error('Erro ao copiar permissões', { description: error.message });
+        },
+    });
+}
+
+/**
+ * Hook to get user permission audit log
+ */
+export function useUserPermissionsAuditLog(userId: number) {
+    return useQuery({
+        queryKey: [...permissionKeys.user(userId), 'audit-log'],
+        queryFn: () => permissionsService.getUserPermissionAuditLog(userId),
+        enabled: !!userId,
+    });
+}
+
+/**
+ * Hook to update user permission override
+ */
+export function useUpdateUserPermissionOverride() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ userId, overrideId, data }: {
+            userId: number;
+            overrideId: number;
+            data: Partial<AddPermissionOverrideRequest>;
+        }) => permissionsService.updateUserPermissionOverride(userId, overrideId, data),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: permissionKeys.user(variables.userId) });
+            queryClient.invalidateQueries({ queryKey: permissionKeys.userEffective(variables.userId) });
+            toast.success('Override atualizado');
+        },
+        onError: (error: Error) => {
+            toast.error('Erro ao atualizar override', { description: error.message });
+        },
+    });
+}
+
+/**
+ * Hook to update store permission override
+ */
+export function useUpdateStorePermissionOverride() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ storeId, overrideId, data }: {
+            storeId: number;
+            overrideId: number;
+            data: Partial<CreateStorePermissionOverrideRequest>;
+        }) => permissionsService.updateStorePermissionOverride(storeId, overrideId, data),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: permissionKeys.store(variables.storeId) });
+            toast.success('Override de loja atualizado');
+        },
+        onError: (error: Error) => {
+            toast.error('Erro ao atualizar override', { description: error.message });
+        },
+    });
+}
+
+/**
+ * Hook to clear all store permission overrides
+ */
+export function useClearStorePermissionOverrides() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (storeId: number) =>
+            permissionsService.clearStorePermissionOverrides(storeId),
+        onSuccess: (_, storeId) => {
+            queryClient.invalidateQueries({ queryKey: permissionKeys.store(storeId) });
+            toast.success('Overrides da loja removidos');
+        },
+        onError: (error: Error) => {
+            toast.error('Erro ao limpar overrides', { description: error.message });
         },
     });
 }

@@ -75,6 +75,9 @@ const Comunicados = lazy(() => import("@/pages/comunicados/Comunicados"));
 const ComunicadosAdmin = lazy(() => import("@/pages/config/comunicados/ComunicadosAdmin"));
 const ComunicadoForm = lazy(() => import("@/pages/config/comunicados/ComunicadoForm"));
 
+// Celebrations
+const Celebrations = lazy(() => import("@/pages/celebrations/Celebrations"));
+
 // Produção (Admin)
 const ProducaoCarrinho = lazy(() => import("@/pages/producao/ProducaoCarrinho"));
 const ProducaoPedidos = lazy(() => import("@/pages/producao/ProducaoPedidos"));
@@ -83,6 +86,20 @@ const ProducaoPedidoDetail = lazy(() => import("@/pages/producao/ProducaoPedidoD
 // Fábrica
 const FabricaPedidos = lazy(() => import("@/pages/fabrica/FabricaPedidos"));
 const FabricaPedidoDetail = lazy(() => import("@/pages/fabrica/FabricaPedidoDetail"));
+
+// Wheel Module (Super Admin)
+const WheelDashboard = lazy(() => import("@/pages/admin/wheel/WheelDashboard"));
+const WheelScreens = lazy(() => import("@/pages/admin/wheel/WheelScreens"));
+const WheelScreenDetail = lazy(() => import("@/pages/admin/wheel/WheelScreenDetail"));
+const WheelCampaigns = lazy(() => import("@/pages/admin/wheel/WheelCampaigns"));
+const WheelCampaignDetail = lazy(() => import("@/pages/admin/wheel/WheelCampaignDetail"));
+const WheelSegmentEditor = lazy(() => import("@/pages/admin/wheel/WheelSegmentEditor"));
+const WheelPrizes = lazy(() => import("@/pages/admin/wheel/WheelPrizes"));
+const WheelRules = lazy(() => import("@/pages/admin/wheel/WheelRules"));
+const WheelLogs = lazy(() => import("@/pages/admin/wheel/WheelLogs"));
+const WheelAnalytics = lazy(() => import("@/pages/admin/wheel/WheelAnalytics"));
+const WheelPlayers = lazy(() => import("@/pages/admin/wheel/WheelPlayers"));
+const WheelPlayerDetail = lazy(() => import("@/pages/admin/wheel/WheelPlayerDetail"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -161,6 +178,9 @@ const App = () => (
 
                 {/* Comunicados - All authenticated users */}
                 <Route path="/comunicados" element={<Comunicados />} />
+
+                {/* Comemorações - All authenticated users */}
+                <Route path="/comemoracoes" element={<Celebrations />} />
 
                 {/* Fábrica - Factory role + Admin/Super Admin */}
                 <Route path="/fabrica" element={<Navigate to="/fabrica/pedidos" replace />} />
@@ -354,6 +374,68 @@ const App = () => (
                 <Route path="/config/comunicados/:id" element={
                   <ProtectedRoute requiredRoles={['gerente', 'admin']}>
                     <ComunicadoForm />
+                  </ProtectedRoute>
+                } />
+
+                {/* Wheel Module - Super Admin Only */}
+                <Route path="/admin/wheel" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WheelDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/wheel/screens" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WheelScreens />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/wheel/screens/:key" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WheelScreenDetail />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/wheel/campaigns" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WheelCampaigns />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/wheel/campaigns/:key" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WheelCampaignDetail />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/wheel/campaigns/:key/segments" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WheelSegmentEditor />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/wheel/prizes" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WheelPrizes />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/wheel/rules" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WheelRules />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/wheel/logs" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WheelLogs />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/wheel/analytics" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WheelAnalytics />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/wheel/players" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WheelPlayers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/wheel/players/:key" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <WheelPlayerDetail />
                   </ProtectedRoute>
                 } />
               </Route>

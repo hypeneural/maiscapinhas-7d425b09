@@ -160,13 +160,20 @@ export interface RoleAssignment {
 export type OverrideType = 'grant' | 'deny';
 
 /**
- * Permission override entity
+ * Permission override entity (user-level)
  */
 export interface PermissionOverride {
     id: number;
-    permission: string;
-    permission_display_name?: string;
+    permission: {
+        id: number;
+        name: string;
+        display_name: string;
+        type: PermissionType;
+        module: string;
+    };
     type: OverrideType;
+    store?: { id: number; name: string } | null;
+    is_global: boolean;
     expires_at?: string | null;
     granted_by?: string;
     reason?: string;
@@ -177,21 +184,22 @@ export interface PermissionOverride {
  * Request to add permission override
  */
 export interface AddPermissionOverrideRequest {
-    permission: string;
+    permission_id: number;
     type: OverrideType;
+    store_id?: number | null;   // null = global
     expires_at?: string | null;
     reason?: string;
 }
 
 /**
- * Store permission override
+ * Store permission override (applies to all users in store)
  */
 export interface StorePermissionOverride {
     id: number;
-    store_id: number;
-    permission: string;
-    type: OverrideType;
-    applies_to_all_users: boolean;
+    permission: Permission;
+    granted: boolean;   // true = grant, false = deny
+    created_at: string;
+    updated_at: string;
 }
 
 // ============================================================
@@ -273,4 +281,106 @@ export interface PermissionsListResponse {
         label: string;
         icon: string;
     }>;
+}
+
+// ============================================================
+// Bulk Operations
+// ============================================================
+
+/**
+ * Request to preview permission changes
+ */
+export interface PermissionPreviewRequest {
+    user_id: number;
+    add_permissions?: string[];
+    remove_permissions?: string[];
+}
+
+/**
+ * Response from permission preview
+ */
+export interface PermissionPreviewResponse {
+    user_id: number;
+    user_name: string;
+    current: string[];
+    after: string[];
+    added: string[];
+    removed: string[];
+    total_change: number;
+}
+
+/**
+ * Request to bulk grant permissions
+ */
+export interface BulkGrantPermissionsRequest {
+    user_ids: number[];
+    permissions: string[];
+    expires_at?: string;
+    reason?: string;
+}
+
+/**
+ * Response from bulk grant permissions
+ */
+export interface BulkGrantPermissionsResponse {
+    message: string;
+    data: Array<{
+        user_id: number;
+        user_name: string;
+        granted: string[];
+    }>;
+    total_users: number;
+    total_permissions: number;
+}
+
+/**
+ * Request to copy permissions between users
+ */
+export interface CopyPermissionsRequest {
+    include_temporary?: boolean;
+    expires_at?: string;
+}
+
+/**
+ * Response from copy permissions
+ */
+export interface CopyPermissionsResponse {
+    message: string;
+    data: {
+        source_user: string;
+        target_user: string;
+        permissions_copied: string[];
+        count: number;
+    };
+}
+
+/**
+ * Permission audit log entry
+ */
+export interface PermissionAuditEntry {
+    permission: string;
+    type: OverrideType;
+    is_active: boolean;
+    granted_by: string;
+    reason?: string;
+    expires_at?: string | null;
+    created_at: string;
+}
+
+/**
+ * Permission audit log response
+ */
+export interface PermissionAuditLogResponse {
+    user_id: number;
+    user_name: string;
+    entries: PermissionAuditEntry[];
+    total: number;
+}
+
+/**
+ * Request to create store permission override
+ */
+export interface CreateStorePermissionOverrideRequest {
+    permission_id: number;
+    granted: boolean;
 }

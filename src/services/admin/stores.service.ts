@@ -121,7 +121,7 @@ export async function removePhoto(id: number): Promise<StorePhotoResponse> {
  */
 export async function listStoreUsers(storeId: number): Promise<StoreUserBinding[]> {
     const response = await apiGet<ApiResponse<StoreUserBinding[]>>(
-        `/stores/${storeId}/users`
+        `/admin/stores/${storeId}/users`
     );
     return response.data;
 }

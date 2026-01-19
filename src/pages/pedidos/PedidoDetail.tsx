@@ -2,9 +2,10 @@
  * Pedido Detail Page
  * 
  * View pedido details with status timeline and actions.
+ * Uses useStatusTransitions for role-based status change validation.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -47,6 +48,7 @@ import {
     useDeletePedido,
     useUpdatePedidoStatus,
 } from '@/hooks/api/use-pedidos';
+import { useStatusTransitions } from '@/hooks/use-status-transitions';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -67,6 +69,32 @@ const PedidoDetail: React.FC = () => {
     const { data: pedido, isLoading } = usePedido(pedidoId);
     const deleteMutation = useDeletePedido();
     const updateStatusMutation = useUpdatePedidoStatus();
+
+    // Use transition matrix to determine allowed status changes
+    const { allowedTransitions, isLoading: transitionsLoading } = useStatusTransitions({
+        moduleId: 'pedidos-simples',
+        currentStatus: pedido?.status ?? 0,
+    });
+
+    // Filter status options based on allowed transitions
+    const filteredStatusOptions = useMemo(() => {
+        if (!pedido) return [];
+
+        // Get all status options except current status
+        const availableOptions = PEDIDO_STATUS_OPTIONS.filter(
+            opt => opt.value !== pedido.status
+        );
+
+        // If we have transition data, filter by allowed transitions
+        if (allowedTransitions.length > 0) {
+            return availableOptions.filter(opt =>
+                allowedTransitions.includes(opt.value)
+            );
+        }
+
+        // Fallback: show all options if transitions not loaded yet
+        return availableOptions;
+    }, [pedido, allowedTransitions]);
 
     const handleDelete = async () => {
         await deleteMutation.mutateAsync(pedidoId);
@@ -312,14 +340,22 @@ const PedidoDetail: React.FC = () => {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <Select value={newStatus} onValueChange={setNewStatus}>
+                        <Select
+                            value={newStatus}
+                            onValueChange={setNewStatus}
+                            disabled={transitionsLoading || filteredStatusOptions.length === 0}
+                        >
                             <SelectTrigger>
-                                <SelectValue placeholder="Selecione o novo status" />
+                                <SelectValue placeholder={
+                                    transitionsLoading
+                                        ? "Carregando transições..."
+                                        : filteredStatusOptions.length === 0
+                                            ? "Nenhuma transição disponível"
+                                            : "Selecione o novo status"
+                                } />
                             </SelectTrigger>
                             <SelectContent>
-                                {PEDIDO_STATUS_OPTIONS.filter(
-                                    (opt) => opt.value !== pedido.status
-                                ).map((option) => (
+                                {filteredStatusOptions.map((option) => (
                                     <SelectItem
                                         key={option.value}
                                         value={option.value.toString()}
@@ -339,7 +375,7 @@ const PedidoDetail: React.FC = () => {
                         </Select>
                         <Button
                             onClick={handleStatusChangeClick}
-                            disabled={!newStatus || updateStatusMutation.isPending}
+                            disabled={!newStatus || updateStatusMutation.isPending || transitionsLoading}
                             className="w-full"
                         >
                             {updateStatusMutation.isPending && (

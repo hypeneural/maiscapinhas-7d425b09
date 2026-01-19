@@ -25,7 +25,10 @@ export interface Role {
     id: number;
     name: string;           // 'super-admin', 'admin', 'gerente', etc
     display_name: string;   // 'Super Admin', 'Administrador', etc
+    description?: string;
     level: number;          // Hierarchy level (100=highest, 20=lowest)
+    is_system: boolean;     // System roles cannot be deleted
+    permissions_count?: number;
 }
 
 /**
@@ -44,6 +47,26 @@ export interface EffectiveRoleAssignment extends RoleAssignment {
     role_name: string;
     role_display_name: string;
     store_name?: string;
+}
+
+/**
+ * User-Store-Role assignment from GET /admin/users/{id}/roles
+ * Response from user_store_roles table
+ */
+export interface UserStoreRole {
+    id: number;
+    role: {
+        id: number;
+        name: string;
+        display_name: string;
+        level: number;
+    };
+    store: {
+        id: number;
+        name: string;
+    } | null;
+    is_global: boolean;
+    created_at: string;
 }
 
 /**

@@ -17,6 +17,7 @@ import type {
 export const roleKeys = {
     all: ['roles'] as const,
     list: () => [...roleKeys.all, 'list'] as const,
+    available: () => [...roleKeys.all, 'available'] as const,
     detail: (id: number) => [...roleKeys.all, 'detail', id] as const,
     userRoles: (userId: number) => [...roleKeys.all, 'user', userId] as const,
 };
@@ -163,6 +164,82 @@ export function useSyncUserRoles() {
         },
         onError: (error: Error) => {
             toast.error('Erro ao sincronizar roles', { description: error.message });
+        },
+    });
+}
+
+// ============================================================
+// New Hooks (v2.0)
+// ============================================================
+
+import type { CloneRoleRequest, UpdateRolePermissionsRequest } from '@/services/admin/roles.service';
+
+/**
+ * Hook to get available roles for assignment
+ */
+export function useAvailableRoles() {
+    return useQuery({
+        queryKey: roleKeys.available(),
+        queryFn: rolesService.getAvailableRoles,
+        staleTime: 1000 * 60 * 60, // 1 hour
+    });
+}
+
+/**
+ * Hook to clone a role
+ */
+export function useCloneRole() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ roleId, data }: { roleId: number; data: CloneRoleRequest }) =>
+            rolesService.cloneRole(roleId, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: roleKeys.all });
+            toast.success('Role clonada com sucesso');
+        },
+        onError: (error: Error) => {
+            toast.error('Erro ao clonar role', { description: error.message });
+        },
+    });
+}
+
+/**
+ * Hook to update role permissions (add/remove)
+ */
+export function useUpdateRolePermissions() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ roleId, data }: { roleId: number; data: UpdateRolePermissionsRequest }) =>
+            rolesService.updateRolePermissions(roleId, data),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: roleKeys.detail(variables.roleId) });
+            queryClient.invalidateQueries({ queryKey: roleKeys.all });
+            toast.success('Permissões atualizadas');
+        },
+        onError: (error: Error) => {
+            toast.error('Erro ao atualizar permissões', { description: error.message });
+        },
+    });
+}
+
+/**
+ * Hook to sync role permissions (replace all)
+ */
+export function useSyncRolePermissions() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ roleId, permissions }: { roleId: number; permissions: string[] }) =>
+            rolesService.syncRolePermissions(roleId, permissions),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: roleKeys.detail(variables.roleId) });
+            queryClient.invalidateQueries({ queryKey: roleKeys.all });
+            toast.success('Permissões sincronizadas');
+        },
+        onError: (error: Error) => {
+            toast.error('Erro ao sincronizar permissões', { description: error.message });
         },
     });
 }

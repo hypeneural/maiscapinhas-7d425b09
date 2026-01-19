@@ -113,39 +113,92 @@ export async function removeUserPermissionOverride(
  * DELETE /admin/users/{id}/permission-overrides/clear
  */
 export async function clearUserPermissionOverrides(
-    userId: number
+    userId: number,
+    storeId?: number
 ): Promise<{ message: string }> {
     const response = await api.delete<ApiResponse<{ message: string }>>(
-        `${BASE_URL}/users/${userId}/permission-overrides/clear`
+        `${BASE_URL}/users/${userId}/permission-overrides/clear`,
+        { params: storeId ? { store_id: storeId } : undefined }
+    );
+    return response.data.data;
+}
+
+/**
+ * Update permission override for user
+ * PUT /admin/users/{id}/permission-overrides/{overrideId}
+ */
+export async function updateUserPermissionOverride(
+    userId: number,
+    overrideId: number,
+    data: Partial<AddPermissionOverrideRequest>
+): Promise<PermissionOverride> {
+    const response = await api.put<ApiResponse<PermissionOverride>>(
+        `${BASE_URL}/users/${userId}/permission-overrides/${overrideId}`,
+        data
+    );
+    return response.data.data;
+}
+
+/**
+ * Bulk add permission overrides for user
+ * POST /admin/users/{id}/permission-overrides/bulk
+ */
+export async function bulkAddUserPermissionOverrides(
+    userId: number,
+    overrides: AddPermissionOverrideRequest[]
+): Promise<PermissionOverride[]> {
+    const response = await api.post<ApiResponse<PermissionOverride[]>>(
+        `${BASE_URL}/users/${userId}/permission-overrides/bulk`,
+        { overrides }
     );
     return response.data.data;
 }
 
 // ============================================================
-// Store Permissions
+// Store Permission Overrides
 // ============================================================
+
+import type { StorePermissionOverride, CreateStorePermissionOverrideRequest } from '@/types/permissions.types';
 
 /**
  * Get store permission overrides
+ * GET /admin/stores/{id}/permission-overrides
  */
 export async function getStorePermissions(
     storeId: number
-): Promise<PermissionOverride[]> {
-    const response = await api.get<ApiResponse<PermissionOverride[]>>(
-        `${BASE_URL}/stores/${storeId}/permissions`
+): Promise<StorePermissionOverride[]> {
+    const response = await api.get<ApiResponse<StorePermissionOverride[]>>(
+        `${BASE_URL}/stores/${storeId}/permission-overrides`
     );
     return response.data.data;
 }
 
 /**
  * Add permission override for store
+ * POST /admin/stores/{id}/permission-overrides
  */
 export async function addStorePermissionOverride(
     storeId: number,
-    data: AddPermissionOverrideRequest
-): Promise<PermissionOverride> {
-    const response = await api.post<ApiResponse<PermissionOverride>>(
-        `${BASE_URL}/stores/${storeId}/permissions`,
+    data: CreateStorePermissionOverrideRequest
+): Promise<StorePermissionOverride> {
+    const response = await api.post<ApiResponse<StorePermissionOverride>>(
+        `${BASE_URL}/stores/${storeId}/permission-overrides`,
+        data
+    );
+    return response.data.data;
+}
+
+/**
+ * Update store permission override
+ * PUT /admin/stores/{id}/permission-overrides/{overrideId}
+ */
+export async function updateStorePermissionOverride(
+    storeId: number,
+    overrideId: number,
+    data: Partial<CreateStorePermissionOverrideRequest>
+): Promise<StorePermissionOverride> {
+    const response = await api.put<ApiResponse<StorePermissionOverride>>(
+        `${BASE_URL}/stores/${storeId}/permission-overrides/${overrideId}`,
         data
     );
     return response.data.data;
@@ -153,12 +206,41 @@ export async function addStorePermissionOverride(
 
 /**
  * Remove permission override from store
+ * DELETE /admin/stores/{id}/permission-overrides/{overrideId}
  */
 export async function removeStorePermissionOverride(
     storeId: number,
     overrideId: number
 ): Promise<void> {
-    await api.delete(`${BASE_URL}/stores/${storeId}/permissions/${overrideId}`);
+    await api.delete(`${BASE_URL}/stores/${storeId}/permission-overrides/${overrideId}`);
+}
+
+/**
+ * Bulk add permission overrides for store
+ * POST /admin/stores/{id}/permission-overrides/bulk
+ */
+export async function bulkAddStorePermissionOverrides(
+    storeId: number,
+    overrides: CreateStorePermissionOverrideRequest[]
+): Promise<StorePermissionOverride[]> {
+    const response = await api.post<ApiResponse<StorePermissionOverride[]>>(
+        `${BASE_URL}/stores/${storeId}/permission-overrides/bulk`,
+        { overrides }
+    );
+    return response.data.data;
+}
+
+/**
+ * Clear all permission overrides for store
+ * DELETE /admin/stores/{id}/permission-overrides/clear
+ */
+export async function clearStorePermissionOverrides(
+    storeId: number
+): Promise<{ message: string }> {
+    const response = await api.delete<ApiResponse<{ message: string }>>(
+        `${BASE_URL}/stores/${storeId}/permission-overrides/clear`
+    );
+    return response.data.data;
 }
 
 // ============================================================
@@ -341,15 +423,22 @@ export const permissionsService = {
     getPermissions,
     getPermissionsGrouped,
     getPermissionsByType,
+    // User permissions
     getUserPermissions,
     getUserEffectivePermissions,
     addUserPermissionOverride,
+    updateUserPermissionOverride,
     removeUserPermissionOverride,
+    bulkAddUserPermissionOverrides,
     clearUserPermissionOverrides,
+    // Store permissions
     getStorePermissions,
     addStorePermissionOverride,
+    updateStorePermissionOverride,
     removeStorePermissionOverride,
-    // New v2.0
+    bulkAddStorePermissionOverrides,
+    clearStorePermissionOverrides,
+    // Bulk operations
     previewPermissionChanges,
     bulkGrantPermissions,
     copyUserPermissions,
