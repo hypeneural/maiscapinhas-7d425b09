@@ -11,9 +11,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   Calendar, Store, User, Clock, FileCheck, AlertTriangle, CheckCircle,
   DollarSign, CreditCard, Smartphone, Banknote, Send, Info, Loader2,
-  Lock, Unlock, ShieldCheck, Users
+  Lock, Unlock, ShieldCheck, Users, History
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,16 +25,16 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PageHeader } from '@/components/PageHeader';
-import { useStoreUsers } from '@/hooks/api/use-admin-stores';
 import { getAllPublicStores } from '@/services/stores.service';
-import { useCashShifts, useCreateCashShift } from '@/hooks/api/use-cash-shifts';
+import { useCashShifts } from '@/hooks/api/use-cash-shifts';
 import { useClosureFilters } from '@/hooks/api/use-closure-filters';
-import { useCashClosing, useCreateClosing, useUpdateClosing, useSubmitClosing, usePdvClosureData } from '@/hooks/api/use-cash-closings';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCashClosing, useUpdateClosing, useSubmitClosing, usePdvClosureData, useApproveClosing } from '@/hooks/api/use-cash-closings';
+import { getStoreIdentifier } from '@/lib/store-identifiers';
 import { cn } from '@/lib/utils';
 import {
-  SHIFT_CODES, PAYMENT_LABELS, DEFAULT_CLOSING_LINES,
+  SHIFT_CODES, DEFAULT_CLOSING_LINES,
   type ShiftCode, type ClosingLineFormData, type PdvClosureDetail
 } from '@/types/conference.types';
 
@@ -46,6 +47,68 @@ const formatCurrency = (value: number) => {
     style: 'currency',
     currency: 'BRL',
   }).format(value);
+};
+
+const normalizePaymentLabel = (label: string) => label.trim().toLowerCase();
+const normalizeShiftCode = (value: unknown): string => {
+  const raw = String(value ?? '').trim().toUpperCase();
+  if (raw === 'M' || raw === '1') return '1';
+  if (raw === 'T' || raw === '2') return '2';
+  if (raw === 'N' || raw === '3') return '3';
+  return raw;
+};
+
+const parseApiDateTime = (value: string | null | undefined): Date | null => {
+  if (!value) return null;
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatApiTime = (value: string | null | undefined): string | null => {
+  const parsed = parseApiDateTime(value);
+  if (!parsed) return null;
+  return parsed.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatRealInputValue = (value: number): string => {
+  if (!Number.isFinite(value) || value === 0) return '';
+  return value.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const parseRealInputValue = (input: string): number => {
+  const trimmed = input.trim();
+  if (!trimmed) return 0;
+
+  const sanitized = trimmed.replace(/[^\d,.-]/g, '');
+  if (!sanitized) return 0;
+
+  if (sanitized.includes(',')) {
+    const [rawIntegerPart, rawDecimalPart = ''] = sanitized.split(',');
+    const integerPart = rawIntegerPart.replace(/\./g, '').replace(/[^\d]/g, '');
+    const decimalPart = rawDecimalPart.replace(/[^\d]/g, '').slice(0, 2);
+    const parsed = Number.parseFloat(`${integerPart || '0'}.${decimalPart || '0'}`);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  const dotCount = sanitized.match(/\./g)?.length || 0;
+  if (dotCount === 1) {
+    const [rawIntegerPart, rawDecimalPart = ''] = sanitized.split('.');
+    const decimalPart = rawDecimalPart.replace(/[^\d]/g, '');
+
+    if (decimalPart.length > 0 && decimalPart.length <= 2) {
+      const integerPart = rawIntegerPart.replace(/[^\d]/g, '');
+      const parsed = Number.parseFloat(`${integerPart || '0'}.${decimalPart}`);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+  }
+
+  const integerOnly = sanitized.replace(/[^\d]/g, '');
+  const parsed = Number.parseFloat(integerOnly);
+  return Number.isFinite(parsed) ? parsed : 0;
 };
 
 function getPaymentIcon(label: string): React.ReactNode {
@@ -64,13 +127,39 @@ function getPaymentIcon(label: string): React.ReactNode {
 interface LineInputProps {
   line: ClosingLineFormData;
   index: number;
+  declaredValue?: number | null;
   onChange: (index: number, field: keyof ClosingLineFormData, value: number) => void;
   disabled?: boolean;
 }
 
-function LineInput({ line, index, onChange, disabled }: LineInputProps) {
+function LineInput({ line, index, declaredValue, onChange, disabled }: LineInputProps) {
   const diff = line.real_value - line.system_value;
   const hasDiff = diff !== 0;
+  const [isRealFocused, setIsRealFocused] = useState(false);
+  const [realInputValue, setRealInputValue] = useState<string>(formatRealInputValue(line.real_value));
+
+  useEffect(() => {
+    if (!isRealFocused) {
+      setRealInputValue(formatRealInputValue(line.real_value));
+    }
+  }, [line.real_value, isRealFocused]);
+
+  const declaredLabel = declaredValue !== null && declaredValue !== undefined
+    ? `Declarado pelo funcionario: ${formatCurrency(declaredValue)}`
+    : 'Nenhum valor declarado pelo funcionario no PDV.';
+
+  const handleRealInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = event.target.value;
+    setRealInputValue(rawValue);
+    onChange(index, 'real_value', parseRealInputValue(rawValue));
+  };
+
+  const handleRealInputBlur = () => {
+    setIsRealFocused(false);
+    const parsedValue = parseRealInputValue(realInputValue);
+    onChange(index, 'real_value', parsedValue);
+    setRealInputValue(formatRealInputValue(parsedValue));
+  };
 
   return (
     <div className={cn(
@@ -96,27 +185,45 @@ function LineInput({ line, index, onChange, disabled }: LineInputProps) {
           <Input
             type="number"
             value={line.system_value || ''}
-            onChange={(e) => onChange(index, 'system_value', parseFloat(e.target.value) || 0)}
-            className="pl-10 bg-background"
+            readOnly
+            className="pl-10 bg-muted/50 cursor-not-allowed"
             step="0.01"
             min="0"
-            disabled={disabled}
+            disabled
           />
         </div>
       </div>
 
       {/* Real Value */}
       <div className="col-span-3">
-        <Label className="text-xs text-muted-foreground mb-1 block">Real (Envelope)</Label>
+        <Label className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">
+          Real (Envelope)
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={declaredLabel}
+              >
+                <Info className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs text-sm">
+              {declaredLabel}
+            </TooltipContent>
+          </Tooltip>
+        </Label>
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
           <Input
-            type="number"
-            value={line.real_value || ''}
-            onChange={(e) => onChange(index, 'real_value', parseFloat(e.target.value) || 0)}
+            type="text"
+            inputMode="decimal"
+            value={realInputValue}
+            onFocus={() => setIsRealFocused(true)}
+            onBlur={handleRealInputBlur}
+            onChange={handleRealInputChange}
             className={cn('pl-10', hasDiff && 'border-destructive focus-visible:ring-destructive')}
-            step="0.01"
-            min="0"
+            placeholder="0,00"
             disabled={disabled}
           />
         </div>
@@ -141,12 +248,12 @@ function LineInput({ line, index, onChange, disabled }: LineInputProps) {
 // ============================================================
 
 const LancarTurnoPage: React.FC = () => {
-  const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Selection state
   const [storeId, setStoreId] = useState<string>('');
   const [date, setDate] = useState<string>('');
-  const [shiftCode, setShiftCode] = useState<ShiftCode>('1');
+  const [shiftCode, setShiftCode] = useState<ShiftCode | ''>('');
   const [sellerId, setSellerId] = useState<string>('');
 
   // Form state
@@ -157,12 +264,18 @@ const LancarTurnoPage: React.FC = () => {
   const [justificationText, setJustificationText] = useState<string>('');
   const [justified, setJustified] = useState<boolean>(false);
 
+  const { data: publicStoresData } = useQuery({
+    queryKey: ['public-stores-for-operacoes-link'],
+    queryFn: () => getAllPublicStores({ per_page: 200 }),
+    staleTime: 1000 * 60 * 10,
+  });
+
   // Queries
   // Smart Filters
   const { data: filters } = useClosureFilters(
     storeId ? parseInt(storeId) : undefined,
     date || undefined,
-    shiftCode || undefined
+    shiftCode ? normalizeShiftCode(shiftCode) : undefined
   );
 
   // Auto-select Store or Reset if invalid
@@ -202,13 +315,13 @@ const LancarTurnoPage: React.FC = () => {
     if (filters?.shifts) {
       // 1. If currently selected shift is no longer in the list, reset it
       if (shiftCode) {
-        const exists = filters.shifts.map(String).includes(String(shiftCode));
-        if (!exists) setShiftCode(null as unknown as ShiftCode); // Force reset
+        const exists = filters.shifts.map((code) => normalizeShiftCode(code)).includes(normalizeShiftCode(shiftCode));
+        if (!exists) setShiftCode('');
       }
 
       // 2. If no shift selected and only one available, auto-select
       if (filters.shifts.length === 1 && !shiftCode) {
-        setShiftCode(String(filters.shifts[0]) as ShiftCode);
+        setShiftCode(normalizeShiftCode(filters.shifts[0]) as ShiftCode);
       }
     }
   }, [filters?.shifts, shiftCode]);
@@ -229,29 +342,47 @@ const LancarTurnoPage: React.FC = () => {
     }
   }, [filters?.sellers.suggested, sellerId]);
 
+  useEffect(() => {
+    if (!sellerId || sellers.length === 0) return;
+    const exists = sellers.some((seller) => String(seller.id) === sellerId);
+    if (!exists) {
+      setSellerId('');
+    }
+  }, [sellerId, sellers]);
+
   // Get existing shift
   const { data: shiftsData } = useCashShifts({
     store_id: storeId ? parseInt(storeId) : undefined,
-    date: date,
+    date: date || undefined,
+    shift_code: shiftCode ? normalizeShiftCode(shiftCode) : undefined,
+    seller_id: sellerId ? parseInt(sellerId) : undefined,
     per_page: 100,
   });
 
   // Get existing closing if shift exists
-  const { data: closingData } = useCashClosing(existingShiftId || 0, !!existingShiftId);
+  const { data: closingData, isLoading: closingLoading } = useCashClosing(existingShiftId || 0, !!existingShiftId);
 
   // Mutations
-  const createShiftMutation = useCreateCashShift();
-  const createClosingMutation = useCreateClosing();
   const updateClosingMutation = useUpdateClosing();
   const submitClosingMutation = useSubmitClosing();
+  const approveClosingMutation = useApproveClosing();
 
   // PDV Data (Real-time integration)
   const { data: pdvData } = usePdvClosureData(
     storeId ? parseInt(storeId) : 0,
     date,
-    shiftCode,
+    shiftCode ? normalizeShiftCode(shiftCode) : '',
     !!storeId && !!date && !!shiftCode
   );
+
+  const declaredValuesByLabel = useMemo(() => {
+    const map = new Map<string, number>();
+    const declaredPayments = pdvData?.data?.payments_declarado || [];
+    declaredPayments.forEach((payment: { label: string; value: number }) => {
+      map.set(normalizePaymentLabel(payment.label), payment.value);
+    });
+    return map;
+  }, [pdvData]);
 
   // Find sellers (vendedores only)
 
@@ -262,11 +393,53 @@ const LancarTurnoPage: React.FC = () => {
     return pdvData.data.details[0];
   }, [pdvData]);
 
+  const hasClosedUnifiedTurn = useMemo(
+    () => Boolean(pdvData?.data && pdvData.data.closures_found > 0),
+    [pdvData]
+  );
+
   const turnoFechado = useMemo(() => {
     if (!pdvDetail) return null;
-    // If we have data_hora_termino, turno is closed
-    return !!pdvDetail.data_hora_termino;
+    return !!parseApiDateTime(pdvDetail.data_hora_termino);
   }, [pdvDetail]);
+
+  const historyStoreIdentifier = useMemo(() => {
+    if (!storeId) return undefined;
+    const storeNumericId = parseInt(storeId, 10);
+    if (Number.isNaN(storeNumericId)) return storeId;
+
+    const matchedStore = publicStoresData?.data?.find((store) => store.id === storeNumericId);
+    if (!matchedStore) return storeId;
+
+    return getStoreIdentifier(matchedStore);
+  }, [storeId, publicStoresData]);
+
+  const operationsHistoryUrl = useMemo(() => {
+    if (!storeId || !date || !shiftCode) return null;
+    if (!pdvData?.data || pdvData.data.closures_found <= 0) return null;
+
+    const params = new URLSearchParams({
+      page: '1',
+      per_page: '15',
+      sort: 'desc',
+      from: date,
+      to: date,
+      turno_seq: String(normalizeShiftCode(shiftCode)),
+      tipo_operacao: 'fechamento_caixa',
+      status: 'FECHADO',
+    });
+
+    if (historyStoreIdentifier) {
+      params.set('store_id', String(historyStoreIdentifier));
+    }
+
+    return `/gestao/historico-operacoes?${params.toString()}`;
+  }, [storeId, date, shiftCode, pdvData, historyStoreIdentifier]);
+
+  const handleViewTurnOperations = () => {
+    if (!operationsHistoryUrl) return;
+    navigate(operationsHistoryUrl);
+  };
 
   // Find existing shift when selection changes
   useEffect(() => {
@@ -275,9 +448,15 @@ const LancarTurnoPage: React.FC = () => {
       return;
     }
 
+    const selectedSellerId = Number.parseInt(sellerId, 10);
+    if (Number.isNaN(selectedSellerId)) {
+      setExistingShiftId(null);
+      return;
+    }
+
     const existing = shiftsData.data.find(s =>
-      s.seller_id === parseInt(sellerId) &&
-      s.shift_code === shiftCode
+      s.seller_id === selectedSellerId &&
+      normalizeShiftCode(s.shift_code) === normalizeShiftCode(shiftCode)
     );
 
     setExistingShiftId(existing?.id || null);
@@ -310,7 +489,7 @@ const LancarTurnoPage: React.FC = () => {
 
   // Build dynamic payment lines from PDV data
   useEffect(() => {
-    if (!pdvData?.data?.payments_sistema) return;
+    if (!hasClosedUnifiedTurn || !pdvData?.data?.payments_sistema) return;
 
     // If there's existing closing data with lines, load those
     if (closingData?.data?.lines && closingData.data.lines.length > 0) return;
@@ -328,19 +507,8 @@ const LancarTurnoPage: React.FC = () => {
       real_value: 0,
     }));
 
-    // Also auto-fill declared values if available
-    const declaredPayments = pdvData.data.payments_declarado || [];
-    dynamicLines.forEach(line => {
-      const declared = declaredPayments.find((d: any) =>
-        d.label.toLowerCase() === line.label.toLowerCase()
-      );
-      if (declared) {
-        line.real_value = declared.value;
-      }
-    });
-
     setLines(dynamicLines);
-  }, [pdvData, closingData]);
+  }, [pdvData, closingData, hasClosedUnifiedTurn]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -362,20 +530,14 @@ const LancarTurnoPage: React.FC = () => {
     });
   };
 
-  // Handle submit
+  // Handle action (submit or approve, depending on current status)
   const handleSubmit = async () => {
-    try {
-      let shiftId = existingShiftId;
+    if (!existingShiftId || !closingData?.data) return;
 
-      // Create shift if doesn't exist
-      if (!shiftId) {
-        const result = await createShiftMutation.mutateAsync({
-          store_id: parseInt(storeId),
-          date,
-          shift_code: shiftCode,
-          seller_id: parseInt(sellerId),
-        });
-        shiftId = result.data.id;
+    try {
+      if (closingData.data.status === 'submitted') {
+        await approveClosingMutation.mutateAsync(existingShiftId);
+        return;
       }
 
       // Prepare closing data with per-shift justification
@@ -389,39 +551,56 @@ const LancarTurnoPage: React.FC = () => {
         justified: justified,
       };
 
-      // Create or update closing
-      if (closingData?.data) {
-        await updateClosingMutation.mutateAsync({
-          shiftId: shiftId!,
-          data: closingPayload,
-        });
-      } else {
-        await createClosingMutation.mutateAsync({
-          shiftId: shiftId!,
-          data: closingPayload,
-        });
-      }
+      await updateClosingMutation.mutateAsync({
+        shiftId: existingShiftId,
+        data: closingPayload,
+      });
 
-      // Submit for approval
-      await submitClosingMutation.mutateAsync(shiftId!);
-
-      // Reset form
-      setLines(DEFAULT_CLOSING_LINES);
-      setSellerId('');
-      setJustificationText('');
-      setJustified(false);
+      await submitClosingMutation.mutateAsync(existingShiftId);
     } catch (error) {
       // Error handled by mutations
     }
   };
 
-  const isLoading = createShiftMutation.isPending ||
-    createClosingMutation.isPending ||
+  const isLoading =
     updateClosingMutation.isPending ||
-    submitClosingMutation.isPending;
+    submitClosingMutation.isPending ||
+    approveClosingMutation.isPending;
 
   const closingStatus = closingData?.data?.status;
-  const isEditable = !closingStatus || closingStatus === 'draft' || closingStatus === 'rejected';
+
+  const actionMode = useMemo<'submit' | 'approve' | 'readonly' | 'unavailable'>(() => {
+    if (!existingShiftId || !closingData?.data) return 'unavailable';
+    if (closingStatus === 'submitted') return 'approve';
+    if (closingStatus === 'draft' || closingStatus === 'rejected') return 'submit';
+    if (closingStatus === 'approved') return 'readonly';
+    return 'unavailable';
+  }, [existingShiftId, closingData, closingStatus]);
+
+  const actionLabel = useMemo(() => {
+    if (actionMode === 'approve') return 'Validar conferencia';
+    if (actionMode === 'submit') {
+      return totals.hasDivergence ? 'Enviar para aprovacao' : 'Validar conferencia';
+    }
+    if (actionMode === 'readonly') return 'Conferencia validada';
+    return 'Acao indisponivel';
+  }, [actionMode, totals.hasDivergence]);
+
+  const shouldShowConferenceCard = Boolean(storeId && date && shiftCode && sellerId);
+  const canRenderConferenceDetails = Boolean(
+    shouldShowConferenceCard &&
+    hasClosedUnifiedTurn &&
+    existingShiftId &&
+    closingData?.data
+  );
+  const canEditConferenceValues = Boolean(
+    canRenderConferenceDetails &&
+    actionMode === 'submit'
+  );
+
+  const isActionDisabled = actionMode === 'submit'
+    ? !totals.hasValues || isLoading || !canEditConferenceValues
+    : actionMode !== 'approve' || isLoading;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto animate-fade-in">
@@ -493,8 +672,8 @@ const LancarTurnoPage: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {filters?.shifts?.map(code => (
-                    <SelectItem key={code} value={String(code)}>
-                      {SHIFT_CODES[code as ShiftCode] || `Turno ${code}`}
+                    <SelectItem key={code} value={normalizeShiftCode(code)}>
+                      {SHIFT_CODES[normalizeShiftCode(code) as ShiftCode] || `Turno ${code}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -510,10 +689,10 @@ const LancarTurnoPage: React.FC = () => {
               <Select
                 value={sellerId}
                 onValueChange={setSellerId}
-                disabled={!storeId || sellers.length === 0}
+                disabled={!storeId || !date || !shiftCode || sellers.length === 0}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={!storeId ? 'Selecione a loja' : 'Selecione'} />
+                  <SelectValue placeholder={!shiftCode ? 'Selecione o turno' : 'Selecione'} />
                 </SelectTrigger>
                 <SelectContent>
                   {sellers.map(seller => (
@@ -527,7 +706,7 @@ const LancarTurnoPage: React.FC = () => {
           </div>
 
           {/* PDV Turno Info Bar */}
-          {pdvData?.data && pdvData.data.closures_found > 0 && (
+          {hasClosedUnifiedTurn && (
             <div className="mt-4 flex flex-wrap items-center gap-3">
               {/* Turno open/closed */}
               {turnoFechado !== null && (
@@ -542,6 +721,12 @@ const LancarTurnoPage: React.FC = () => {
                 >
                   {turnoFechado ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
                   Turno {turnoFechado ? 'Fechado' : 'Aberto'}
+                </Badge>
+              )}
+
+              {pdvDetail?.closure_uuid && (
+                <Badge variant="outline" className="gap-1.5 px-3 py-1 text-muted-foreground">
+                  UUID: {pdvDetail.closure_uuid}
                 </Badge>
               )}
 
@@ -565,9 +750,9 @@ const LancarTurnoPage: React.FC = () => {
               {pdvDetail?.data_hora_inicio && (
                 <Badge variant="outline" className="gap-1.5 px-3 py-1 text-muted-foreground">
                   <Clock className="h-3.5 w-3.5" />
-                  {new Date(pdvDetail.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  {pdvDetail.data_hora_termino && (
-                    <> → {new Date(pdvDetail.data_hora_termino).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</>
+                  {formatApiTime(pdvDetail.data_hora_inicio)}
+                  {formatApiTime(pdvDetail.data_hora_termino) && (
+                    <>{' -> '}{formatApiTime(pdvDetail.data_hora_termino)}</>
                   )}
                 </Badge>
               )}
@@ -578,7 +763,31 @@ const LancarTurnoPage: React.FC = () => {
                   {pdvData.data.canais_presentes.join(' + ')}
                 </Badge>
               )}
+
+              {operationsHistoryUrl && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-3 text-xs gap-1.5"
+                  onClick={handleViewTurnOperations}
+                >
+                  <History className="h-3.5 w-3.5" />
+                  Ver operações do turno
+                </Button>
+              )}
             </div>
+          )}
+
+          {storeId && date && shiftCode && pdvData?.data && !hasClosedUnifiedTurn && (
+            <Alert className="mt-4 border-destructive/40 bg-destructive/5">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Turno indisponivel para conferencia</AlertTitle>
+              <AlertDescription>
+                Nenhum fechamento unificado e fechado foi encontrado para esta loja, data e turno.
+                A conferencia so pode ocorrer com turno fechado.
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Existing shift status */}
@@ -599,7 +808,7 @@ const LancarTurnoPage: React.FC = () => {
       </Card>
 
       {/* Values Card */}
-      {storeId && sellerId && (
+      {shouldShowConferenceCard && (
         <Card className="animate-fade-in">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -608,6 +817,44 @@ const LancarTurnoPage: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {!hasClosedUnifiedTurn && (
+              <Alert className="border-destructive/40 bg-destructive/5">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Sem turno fechado para conferencia</AlertTitle>
+                <AlertDescription>
+                  Essa combinacao nao possui fechamento unificado fechado no PDV.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {hasClosedUnifiedTurn && !existingShiftId && (
+              <Alert className="border-amber-300/50 bg-amber-50/70">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Nenhum lancamento para o vendedor selecionado</AlertTitle>
+                <AlertDescription>
+                  O turno fechado existe no PDV, mas nao ha historico de lancamento para loja, data, turno e vendedor.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {hasClosedUnifiedTurn && existingShiftId && closingLoading && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+
+            {hasClosedUnifiedTurn && existingShiftId && !closingLoading && !closingData?.data && (
+              <Alert className="border-destructive/40 bg-destructive/5">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Lancamento nao encontrado</AlertTitle>
+                <AlertDescription>
+                  O turno foi localizado, mas nao existe fechamento de caixa associado para conferencia.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {canRenderConferenceDetails && (
+              <>
             {/* Info Alert */}
             <Alert>
               <Info className="h-4 w-4" />
@@ -619,7 +866,7 @@ const LancarTurnoPage: React.FC = () => {
             </Alert>
 
             {/* PDV Totals Summary */}
-            {pdvData?.data && pdvData.data.closures_found > 0 && (
+            {pdvData?.data && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="rounded-lg border p-3 text-center bg-muted/30">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Sistema</p>
@@ -651,8 +898,9 @@ const LancarTurnoPage: React.FC = () => {
                   key={line.label}
                   line={line}
                   index={index}
+                  declaredValue={declaredValuesByLabel.get(normalizePaymentLabel(line.label))}
                   onChange={handleLineChange}
-                  disabled={!isEditable}
+                  disabled={!canEditConferenceValues}
                 />
               ))}
             </div>
@@ -689,7 +937,7 @@ const LancarTurnoPage: React.FC = () => {
             </div>
 
             {/* Justification Section (per-shift, optional) */}
-            {totals.hasDivergence && (
+            {canEditConferenceValues && totals.hasDivergence && (
               <div className="p-4 rounded-lg border border-amber-500/30 bg-amber-500/5 space-y-4">
                 <div className="flex items-center gap-2 text-amber-600">
                   <AlertTriangle className="h-5 w-5" />
@@ -704,7 +952,7 @@ const LancarTurnoPage: React.FC = () => {
                     onChange={(e) => setJustificationText(e.target.value)}
                     placeholder="Explique a divergência encontrada..."
                     className="min-h-[80px]"
-                    disabled={!isEditable}
+                    disabled={!canEditConferenceValues}
                   />
                 </div>
 
@@ -713,7 +961,7 @@ const LancarTurnoPage: React.FC = () => {
                     id="justified"
                     checked={justified}
                     onCheckedChange={(checked) => setJustified(checked === true)}
-                    disabled={!isEditable}
+                    disabled={!canEditConferenceValues}
                   />
                   <Label
                     htmlFor="justified"
@@ -736,31 +984,35 @@ const LancarTurnoPage: React.FC = () => {
               </div>
             )}
 
-            {/* Submit Button */}
-            <div className="flex justify-end pt-4">
-              <Button
-                size="lg"
-                onClick={handleSubmit}
-                disabled={
-                  !totals.hasValues ||
-                  isLoading ||
-                  !isEditable
-                }
-                className="gap-2"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Processando...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-5 w-5" />
-                    Enviar para Conferência
-                  </>
-                )}
-              </Button>
-            </div>
+            {/* Submit/Approve Button */}
+            {actionMode !== 'readonly' && actionMode !== 'unavailable' && (
+              <div className="flex justify-end pt-4">
+                <Button
+                  size="lg"
+                  onClick={handleSubmit}
+                  disabled={isActionDisabled}
+                  className="gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    <>
+                      {actionMode === 'approve' ? (
+                        <CheckCircle className="h-5 w-5" />
+                      ) : (
+                        <Send className="h-5 w-5" />
+                      )}
+                      {actionLabel}
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+              </>
+            )}
           </CardContent>
         </Card>
       )}
