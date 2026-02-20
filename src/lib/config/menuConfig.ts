@@ -32,6 +32,8 @@ import {
     Network,
     Tv,
     Award,
+    Activity,
+    Plug,
     type LucideIcon,
 } from 'lucide-react';
 import type { Role, Permission } from '@/lib/permissions';
@@ -240,8 +242,45 @@ export const menuSections: MenuSection[] = [
                 path: '/gestao/kpis-colaboradores',
                 permissions: ['reports:user_kpis'],
             },
+            {
+                id: 'historico-vendas',
+                label: 'Histórico de Vendas',
+                icon: FileCheck, // Using FileCheck (scroll text/history like) or History
+                path: '/gestao/historico-vendas',
+                roles: ['admin'],
+            },
+            {
+                id: 'historico-operacoes',
+                label: 'Operações PDV',
+                icon: BarChart3,
+                path: '/gestao/historico-operacoes',
+                roles: ['admin'],
+                tooltip: 'Histórico unificado de vendas e fechamentos de caixa do PDV',
+            },
+            {
+                id: 'monitoramento-pdv',
+                label: 'Monitoramento PDV',
+                icon: Activity,
+                path: '/gestao/monitoramento-pdv',
+                roles: ['admin'],
+            },
+            {
+                id: 'pdv-mapping',
+                label: 'Mapeamento PDV',
+                icon: Users,
+                path: '/admin/pdv/mapping',
+                roles: ['admin'],
+            },
+            {
+                id: 'validacao-vendas',
+                label: 'Validações PDV',
+                icon: FileCheck,
+                path: '/gestao/validacao-vendas',
+                roles: ['admin'],
+            },
         ],
     },
+
 
     // Config - Gerente, Admin (but some items admin-only)
     {
@@ -283,6 +322,14 @@ export const menuSections: MenuSection[] = [
                 label: 'Gerenciar Comunicados',
                 icon: Megaphone,
                 path: '/config/comunicados',
+            },
+            {
+                id: 'hiper-erp',
+                label: 'Conexão ERP Hiper',
+                icon: Plug,
+                path: '/admin/hiper/conexao',
+                roles: ['admin'],
+                tooltip: 'Gerenciar conexões, endpoints e executar requests no Hiper ERP',
             },
         ],
     },

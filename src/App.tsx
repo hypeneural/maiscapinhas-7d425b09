@@ -25,6 +25,9 @@ const RankingVendas = lazy(() => import("@/pages/gestao/RankingVendas"));
 const DesempenhoLojas = lazy(() => import("@/pages/gestao/DesempenhoLojas"));
 const QuebraCaixa = lazy(() => import("@/pages/gestao/QuebraCaixa"));
 const KpisColaboradores = lazy(() => import("@/pages/gestao/KpisColaboradores"));
+const SalesHistory = lazy(() => import("@/pages/gestao/SalesHistory"));
+const SalesSyncManagement = lazy(() => import("@/pages/gestao/SalesSyncManagement"));
+const OperacoesHistory = lazy(() => import("@/pages/gestao/OperacoesHistory"));
 const MetasMensais = lazy(() => import("@/pages/config/MetasMensais"));
 const TabelaBonus = lazy(() => import("@/pages/config/TabelaBonus"));
 const RegrasComissao = lazy(() => import("@/pages/config/RegrasComissao"));
@@ -101,6 +104,14 @@ const WheelAnalytics = lazy(() => import("@/pages/admin/wheel/WheelAnalytics"));
 const WheelPlayers = lazy(() => import("@/pages/admin/wheel/WheelPlayers"));
 const WheelPlayerDetail = lazy(() => import("@/pages/admin/wheel/WheelPlayerDetail"));
 
+// PDV Mapping
+const PdvMapping = lazy(() => import("@/pages/admin/pdv/PdvMapping"));
+const SalesValidation = lazy(() => import("@/pages/admin/pdv/SalesValidation"));
+const ClosureValidation = lazy(() => import("@/pages/admin/pdv/ClosureValidation"));
+
+// Hiper ERP Connection (Super Admin)
+const HiperConnection = lazy(() => import("@/pages/admin/hiper/HiperConnection"));
+
 // Loading fallback component
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -113,7 +124,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -239,6 +250,41 @@ const App = () => (
                 <Route path="/gestao/kpis-colaboradores" element={
                   <ProtectedRoute requiredRoles={['gerente', 'admin']}>
                     <KpisColaboradores />
+                  </ProtectedRoute>
+                } />
+                <Route path="/gestao/historico-vendas" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <SalesHistory />
+                  </ProtectedRoute>
+                } />
+                <Route path="/gestao/historico-operacoes" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <OperacoesHistory />
+                  </ProtectedRoute>
+                } />
+                <Route path="/gestao/monitoramento-pdv" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <SalesSyncManagement />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/pdv/mapping" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <PdvMapping />
+                  </ProtectedRoute>
+                } />
+                <Route path="/gestao/validacao-vendas" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <SalesValidation />
+                  </ProtectedRoute>
+                } />
+                <Route path="/gestao/validacao-fechamentos" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <ClosureValidation />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/hiper/conexao" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <HiperConnection />
                   </ProtectedRoute>
                 } />
 

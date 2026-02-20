@@ -51,6 +51,18 @@ const formatCurrency = (value: number) => {
     }).format(value);
 };
 
+const toNumber = (value: unknown): number => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : 0;
+    }
+    if (typeof value === 'string') {
+        const parsed = Number(value.replace(',', '.'));
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
 // ============================================================
 // Types
 // ============================================================
@@ -149,7 +161,7 @@ const GoalForm: React.FC = () => {
     const isLoading = createMutation.isPending || updateMutation.isPending;
 
     // Calculate splits status
-    const splitsTotal = goalData?.splits?.reduce((acc, s) => acc + s.percent, 0) || 0;
+    const splitsTotal = goalData?.splits?.reduce((acc, s) => acc + toNumber(s.percent), 0) || 0;
     const hasSplits = goalData?.splits && goalData.splits.length > 0;
     const splitsComplete = Math.abs(splitsTotal - 100) < 0.01;
 

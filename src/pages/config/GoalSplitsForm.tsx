@@ -45,6 +45,18 @@ const formatCurrency = (value: number) => {
     }).format(value);
 };
 
+const toNumber = (value: unknown): number => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : 0;
+    }
+    if (typeof value === 'string') {
+        const parsed = Number(value.replace(',', '.'));
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
 // ============================================================
 // Main Component
 // ============================================================
@@ -65,8 +77,8 @@ const GoalSplitsForm: React.FC = () => {
     useEffect(() => {
         if (goalData?.splits) {
             setSplits(goalData.splits.map(s => ({
-                user_id: s.user_id,
-                percent: s.percent,
+                user_id: Number(s.user_id),
+                percent: toNumber(s.percent),
             })));
         }
     }, [goalData]);
@@ -82,7 +94,7 @@ const GoalSplitsForm: React.FC = () => {
     }, [storeUsers]);
 
     // Calculate totals
-    const splitsTotal = splits.reduce((acc, s) => acc + s.percent, 0);
+    const splitsTotal = splits.reduce((acc, s) => acc + toNumber(s.percent), 0);
     const isSplitsValid = Math.abs(splitsTotal - 100) < 0.01;
 
     // Submit handler
@@ -97,7 +109,10 @@ const GoalSplitsForm: React.FC = () => {
         try {
             await setSplitsMutation.mutateAsync({
                 id: goalId,
-                splits,
+                splits: splits.map((split) => ({
+                    user_id: Number(split.user_id),
+                    percent: toNumber(split.percent),
+                })),
             });
             navigate(`/config/metas/${goalId}`);
         } catch (error: any) {
@@ -207,11 +222,15 @@ const GoalSplitsForm: React.FC = () => {
                             </span>
                         </div>
                         <Badge variant={isSplitsValid ? 'default' : 'destructive'}>
-                            {isSplitsValid ? 'Completa' : `Faltam ${(100 - splitsTotal).toFixed(1)}%`}
+                            {isSplitsValid
+                                ? 'Completa'
+                                : splitsTotal > 100
+                                    ? `Excede ${(splitsTotal - 100).toFixed(1)}%`
+                                    : `Faltam ${(100 - splitsTotal).toFixed(1)}%`}
                         </Badge>
                     </div>
                     <Progress
-                        value={Math.min(splitsTotal, 100)}
+                        value={Math.max(0, Math.min(splitsTotal, 100))}
                         className={cn(
                             "h-3",
                             !isSplitsValid && splitsTotal > 100 && "[&>div]:bg-destructive"
@@ -264,7 +283,7 @@ const GoalSplitsForm: React.FC = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                         {splits.map(split => {
                                             const user = vendedores.find(v => v.id === split.user_id);
-                                            const individualGoal = (goalData.goal_amount * split.percent) / 100;
+                                            const individualGoal = (toNumber(goalData.goal_amount) * toNumber(split.percent)) / 100;
                                             return (
                                                 <div
                                                     key={split.user_id}
@@ -273,7 +292,7 @@ const GoalSplitsForm: React.FC = () => {
                                                     <span className="font-medium">{user?.name}</span>
                                                     <div className="text-right">
                                                         <span className="text-sm text-muted-foreground mr-2">
-                                                            ({split.percent}%)
+                                                            ({toNumber(split.percent)}%)
                                                         </span>
                                                         <span className="font-bold text-primary">
                                                             {formatCurrency(individualGoal)}

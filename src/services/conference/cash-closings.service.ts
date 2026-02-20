@@ -12,6 +12,7 @@ import type {
     UpdateClosingRequest,
     RejectClosingRequest,
     CashIntegrityReportResponse,
+    SmartFiltersResponse,
 } from '@/types/conference.types';
 
 const BASE_URL = '/cash/closings';
@@ -80,6 +81,39 @@ export async function getCashIntegrityReport(
     });
 }
 
+/**
+ * Get PDV closure data (real-time integration)
+ */
+export async function getPdvClosureData(
+    storeId: number,
+    date: string,
+    shiftCode: string
+): Promise<any> { // Using any for now or specific response type if imported
+    return apiGet<any>('/cash/pdv-closure-data', {
+        store_id: storeId,
+        date,
+        shift_code: shiftCode,
+    });
+}
+
+
+
+/**
+ * Get closure filters (stores -> dates -> shifts -> sellers)
+ */
+export async function getClosureFilters(
+    storeId?: number,
+    date?: string,
+    shiftCode?: string
+): Promise<SmartFiltersResponse> {
+    const params: Record<string, any> = {};
+    if (storeId) params.store_id = storeId;
+    if (date) params.date = date;
+    if (shiftCode) params.shift_code = shiftCode;
+
+    return apiGet<SmartFiltersResponse>('/cash/closure-filters', params);
+}
+
 export const cashClosingsService = {
     get: getClosing,
     create: createClosing,
@@ -88,4 +122,7 @@ export const cashClosingsService = {
     approve: approveClosing,
     reject: rejectClosing,
     getReport: getCashIntegrityReport,
+
+    getPdvClosureData: getPdvClosureData,
+    getFilters: getClosureFilters,
 };

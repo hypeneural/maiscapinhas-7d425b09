@@ -13,7 +13,7 @@ import {
     getBirthdays,
     getUserKpis
 } from '@/services/reports.service';
-import type { RankingFilters, UserKpisFilters } from '@/types/api';
+import type { ConsolidatedPerformanceFilters, RankingFilters, UserKpisFilters } from '@/types/api';
 
 /**
  * Query key factory for reports queries
@@ -21,7 +21,7 @@ import type { RankingFilters, UserKpisFilters } from '@/types/api';
 export const reportsKeys = {
     all: ['reports'] as const,
     ranking: (filters?: RankingFilters) => [...reportsKeys.all, 'ranking', filters] as const,
-    consolidated: (month?: string) => [...reportsKeys.all, 'consolidated', month] as const,
+    consolidated: (filters?: ConsolidatedPerformanceFilters) => [...reportsKeys.all, 'consolidated', filters] as const,
     storePerformance: (storeId: number, month?: string) =>
         [...reportsKeys.all, 'store-performance', storeId, month] as const,
     cashIntegrity: (storeId: number, month?: string) =>
@@ -47,12 +47,12 @@ export function useRanking(filters: RankingFilters = {}) {
 /**
  * Hook to get consolidated performance for all stores
  * Used by /gestao/lojas page
- * @param month - Optional month in YYYY-MM format
+ * @param filters - Optional filters: month, period, date, from, to, store_id
  */
-export function useConsolidatedPerformance(month?: string) {
+export function useConsolidatedPerformance(filters: ConsolidatedPerformanceFilters = {}) {
     return useQuery({
-        queryKey: reportsKeys.consolidated(month),
-        queryFn: () => getConsolidatedPerformance(month),
+        queryKey: reportsKeys.consolidated(filters),
+        queryFn: () => getConsolidatedPerformance(filters),
         staleTime: 1000 * 60 * 5,
     });
 }

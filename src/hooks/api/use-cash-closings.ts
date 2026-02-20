@@ -39,8 +39,8 @@ interface UseCashClosingOptions {
  */
 export function useCashClosing(shiftId: number, options?: UseCashClosingOptions | boolean) {
     // Handle both old boolean and new object format
-    const enabled = typeof options === 'boolean' 
-        ? options 
+    const enabled = typeof options === 'boolean'
+        ? options
         : (options?.enabled ?? true);
 
     return useQuery({
@@ -60,6 +60,23 @@ export function useCashIntegrityReport(storeId: number, month: string, enabled =
         queryKey: cashClosingKeys.report(storeId, month),
         queryFn: () => cashClosingsService.getReport(storeId, month),
         enabled: enabled && storeId > 0 && !!month,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+}
+
+/**
+ * Get PDV closure data for a specific shift
+ */
+export function usePdvClosureData(
+    storeId: number,
+    date: string,
+    shiftCode: string,
+    enabled: boolean
+) {
+    return useQuery({
+        queryKey: [...cashClosingKeys.all, 'pdv-data', storeId, date, shiftCode] as const,
+        queryFn: () => cashClosingsService.getPdvClosureData(storeId, date, shiftCode),
+        enabled: enabled && !!storeId && !!date && !!shiftCode,
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 }

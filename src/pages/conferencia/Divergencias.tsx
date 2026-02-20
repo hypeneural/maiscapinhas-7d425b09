@@ -116,6 +116,17 @@ function DetailModal({ shiftId, onClose, onApprove, onReject, isApproving, isRej
               <Badge variant="outline">{closing.cash_shift?.seller?.name}</Badge>
             </div>
 
+            {/* Justification Text (Shift Level) */}
+            {closing.justification_text && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+                <h4 className="flex items-center gap-2 font-semibold text-amber-700 mb-1">
+                  <MessageSquare className="h-4 w-4" />
+                  Justificativa do Conferente
+                </h4>
+                <p className="text-sm text-amber-800 whitespace-pre-wrap">{closing.justification_text}</p>
+              </div>
+            )}
+
             {/* Lines */}
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Formas de Pagamento</Label>
@@ -354,9 +365,6 @@ const DivergenciasPage: React.FC = () => {
 
   // Queries
   const { data: storesData } = useAdminStores({ per_page: 100 });
-  const { data: pendingData, isLoading: pendingLoading } = usePendingShifts(
-    storeFilter !== 'all' ? parseInt(storeFilter) : undefined
-  );
   const { data: divergentData, isLoading: divergentLoading } = useDivergentShifts(
     storeFilter !== 'all' ? parseInt(storeFilter) : undefined
   );
@@ -365,9 +373,7 @@ const DivergenciasPage: React.FC = () => {
   const approveMutation = useApproveClosing();
   const rejectMutation = useRejectClosing();
 
-  const pendingShifts = pendingData?.data?.shifts || [];
   const divergentShifts = divergentData?.data?.shifts || [];
-  const totalPending = pendingData?.data?.total_pending || 0;
   const totalDivergent = divergentData?.data?.total_divergent || 0;
   const totalDivergenceValue = divergentData?.data?.total_divergence_value || 0;
 
@@ -385,7 +391,7 @@ const DivergenciasPage: React.FC = () => {
     }
   };
 
-  const isLoading = pendingLoading || divergentLoading;
+  const isLoading = divergentLoading;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -396,20 +402,7 @@ const DivergenciasPage: React.FC = () => {
       />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-amber-500/10">
-                <Clock className="h-6 w-6 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Pendentes</p>
-                <p className="text-2xl font-bold">{totalPending}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
@@ -466,14 +459,14 @@ const DivergenciasPage: React.FC = () => {
       )}
 
       {/* Empty State */}
-      {!isLoading && pendingShifts.length === 0 && divergentShifts.length === 0 && (
+      {!isLoading && divergentShifts.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center">
             <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
             <p className="text-lg font-medium">Tudo em dia!</p>
-            <p className="text-muted-foreground">Não há turnos pendentes de conferência.</p>
+            <p className="text-muted-foreground">Não há divergências aguardando aprovação.</p>
           </CardContent>
         </Card>
       )}
@@ -491,27 +484,6 @@ const DivergenciasPage: React.FC = () => {
                 key={shift.id}
                 shift={shift}
                 type="divergent"
-                onViewDetails={setSelectedShiftId}
-                index={index}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Pending Shifts */}
-      {pendingShifts.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Clock className="h-5 w-5 text-amber-600" />
-            Aguardando Conferência ({pendingShifts.length})
-          </h2>
-          <div className="space-y-3">
-            {pendingShifts.map((shift, index) => (
-              <ShiftCard
-                key={shift.id}
-                shift={shift}
-                type="pending"
                 onViewDetails={setSelectedShiftId}
                 index={index}
               />

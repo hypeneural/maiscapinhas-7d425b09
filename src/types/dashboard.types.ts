@@ -15,6 +15,14 @@ export type ForecastStatus = 'ON_TRACK' | 'AT_RISK' | 'BEHIND';
 export type StoreStatusColor = 'green' | 'yellow' | 'red';
 export type ClosingStatus = 'draft' | 'submitted' | 'approved' | 'rejected';
 export type AlertType = 'INFO' | 'WARNING' | 'CRITICAL';
+export type ReportFilterMode = 'month' | 'period' | 'day' | 'custom';
+export type ReportPeriodPreset =
+    | 'today'
+    | 'yesterday'
+    | 'last_7_days'
+    | 'last_30_days'
+    | 'this_month'
+    | 'last_month';
 
 export interface SalesCount {
     count: number;
@@ -195,8 +203,20 @@ export interface TopSellerWithCount extends TopSeller {
     count: number;
 }
 
+export interface DashboardAppliedFilters {
+    store_id?: number | string | null;
+    month: string;
+    period: string;
+    mode: ReportFilterMode;
+    from: string;
+    to: string;
+    timezone: string;
+}
+
 export interface AdminDashboard {
     month: string;
+    period?: string;
+    mode?: ReportFilterMode;
     total_sales: SalesCount;
     sales_by_store: StoreSales[];
     closings_summary: {
@@ -205,6 +225,7 @@ export interface AdminDashboard {
         draft: number;
     };
     top_sellers: TopSellerWithCount[];
+    filters?: DashboardAppliedFilters;
 }
 
 // ============================================================
@@ -220,6 +241,7 @@ export interface RankingEntry {
         store_name: string;
     };
     total_sold: number;
+    sale_count?: number;
     goal: number;
     achievement_rate: number;
     bonus_accumulated: number;
@@ -228,12 +250,18 @@ export interface RankingEntry {
 
 export interface RankingData {
     period: string;
+    store_id?: number | string | null;
     podium: RankingEntry[];
     ranking: RankingEntry[];
     stats: {
         total_sellers: number;
         above_goal: number;
+        below_goal?: number;
         average_achievement: number;
+    };
+    filters?: DashboardAppliedFilters & {
+        limit?: number;
+        order?: 'asc' | 'desc';
     };
 }
 
@@ -243,7 +271,9 @@ export interface RankingData {
 
 export interface StorePerformance {
     store_id: number;
+    store_name?: string;
     period: string;
+    month?: string;
     days_elapsed: number;
     days_total: number;
     sales: {
@@ -256,6 +286,9 @@ export interface StorePerformance {
         same_period_last_year: number;
         total_last_year_month: number;
         yoy_growth: number;
+        same_period_last_month?: number;
+        total_last_month?: number;
+        mom_growth?: number;
     };
     forecast: {
         linear_projection: number;
@@ -280,12 +313,17 @@ export interface ConsolidatedStore {
     };
     forecast: {
         status: ForecastStatus;
-        projection: number;
+        linear_projection: number;
+        trend_projection?: number;
+    };
+    comparison?: {
+        yoy_growth?: number;
     };
 }
 
 export interface ConsolidatedReport {
     period: string;
+    month?: string;
     stores: ConsolidatedStore[];
     consolidated: {
         total_sales: number;
@@ -293,6 +331,7 @@ export interface ConsolidatedReport {
         total_achievement_rate: number;
         total_linear_projection: number;
     };
+    filters?: DashboardAppliedFilters;
 }
 
 // ============================================================
@@ -339,13 +378,31 @@ export interface ConferenteDashboardParams {
 
 export interface AdminDashboardParams {
     month?: string;
+    date?: string;
+    from?: string;
+    to?: string;
+    period?: ReportPeriodPreset;
+    store_id?: number | string;
 }
 
 export interface RankingParams {
     month?: string;
-    store_id?: number;
+    date?: string;
+    from?: string;
+    to?: string;
+    period?: ReportPeriodPreset;
+    store_id?: number | string;
     limit?: number;
     order?: 'asc' | 'desc';
+}
+
+export interface ConsolidatedReportParams {
+    month?: string;
+    date?: string;
+    from?: string;
+    to?: string;
+    period?: ReportPeriodPreset;
+    store_id?: number | string;
 }
 
 export interface StorePerformanceParams {

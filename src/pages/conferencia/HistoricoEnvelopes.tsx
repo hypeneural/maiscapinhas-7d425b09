@@ -9,7 +9,7 @@ import React, { useState, useMemo } from 'react';
 import {
   History, Store, Calendar, CheckCircle, XCircle, Clock,
   TrendingUp, AlertTriangle, FileCheck, ChevronDown, ChevronUp,
-  Loader2, BarChart3, Eye
+  Loader2, BarChart3, Eye, User
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,8 +20,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/PageHeader';
 import { useAdminStores } from '@/hooks/api/use-admin-stores';
+import { useAdminUsers } from '@/hooks/api/use-admin-users';
 import { useCashShifts } from '@/hooks/api/use-cash-shifts';
-import { useCashIntegrityReport } from '@/hooks/api/use-cash-closings';
+import { useCashIntegrityReport, useCashClosing } from '@/hooks/api/use-cash-closings';
 import { cn } from '@/lib/utils';
 import { SHIFT_CODES, type CashShift, type ShiftCode } from '@/types/conference.types';
 
@@ -52,15 +53,15 @@ const formatDate = (dateStr: string) => {
 const getStatusBadge = (status: string) => {
   switch (status) {
     case 'approved':
-      return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">Aprovado</Badge>;
+      return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">CONCLUÍDO</Badge>;
     case 'rejected':
       return <Badge variant="destructive">Rejeitado</Badge>;
     case 'submitted':
-      return <Badge variant="secondary">Aguardando</Badge>;
+      return <Badge variant="secondary">Aguardando Aprovação</Badge>;
     case 'draft':
       return <Badge variant="outline">Rascunho</Badge>;
     case 'closed':
-      return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">Fechado</Badge>;
+      return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">CONCLUÍDO</Badge>;
     case 'open':
       return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">Aberto</Badge>;
     default:
@@ -87,98 +88,181 @@ interface DetailDialogProps {
 }
 
 function DetailDialog({ shift, onClose }: DetailDialogProps) {
+  // Always call hooks at top level
+  const shiftId = shift?.id || 0;
+  const { data: closingData, isLoading } = useCashClosing(shiftId, { enabled: !!shift });
+
   if (!shift) return null;
 
-  const closing = shift.cash_closing;
-  const hasClosing = closing && closing.lines && closing.lines.length > 0;
+  const closing = closingData?.data;
 
-  const totalSystem = hasClosing ? closing.lines.reduce((s, l) => s + l.system_value, 0) : 0;
-  const totalReal = hasClosing ? closing.lines.reduce((s, l) => s + l.real_value, 0) : 0;
-  const totalDiff = hasClosing ? closing.lines.reduce((s, l) => s + l.diff_value, 0) : 0;
+  // Helper for timeline icon/color
+  const getTimelineEventInfo = (description: string, event: string) => {
+    switch (description) {
+      case 'created': return { icon: FileCheck, color: 'text-blue-500 bg-blue-500/10', text: 'Fechamento Criado' };
+      case 'updated': return { icon: TrendingUp, color: 'text-amber-500 bg-amber-500/10', text: 'Atualizado' };
+      default: return { icon: Clock, color: 'text-gray-500 bg-gray-500/10', text: 'Evento Registrado' };
+    }
+  };
+
+  const activities = closing?.activities || [];
+  const lines = closing?.lines || [];
+  const totalSystem = lines.reduce((s: number, l: any) => s + Number(l.system_value), 0);
+  const totalReal = lines.reduce((s: number, l: any) => s + Number(l.real_value), 0);
+  const totalDiff = lines.reduce((s: number, l: any) => s + Number(l.diff_value), 0);
 
   return (
     <Dialog open={!!shift} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Eye className="h-5 w-5" />
-            Detalhes do Turno
+            Detalhes do Fechamento
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Shift Info */}
-          <div className="flex flex-wrap items-center gap-2 pb-4 border-b">
-            <Badge variant="outline">{shift.store?.name || 'Loja'}</Badge>
-            <Badge variant="outline">{formatDate(shift.date)}</Badge>
-            <Badge variant="outline">{SHIFT_CODES[shift.shift_code]}</Badge>
-            <Badge variant="outline">{shift.seller?.name || 'Vendedor'}</Badge>
-            {getStatusBadge(shift.status)}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
+        ) : closing ? (
+          <div className="space-y-6">
+            {/* 1. Header Info */}
+            <div className="flex flex-wrap items-center gap-3 pb-4 border-b">
+              <Badge variant="outline" className="text-base px-3 py-1">
+                <Store className="h-3 w-3 mr-2" />
+                {shift.store?.name}
+              </Badge>
+              <Badge variant="outline" className="text-base px-3 py-1">
+                <Calendar className="h-3 w-3 mr-2" />
+                {formatDate(shift.date)}
+              </Badge>
+              <Badge variant="outline" className="text-base px-3 py-1">
+                {SHIFT_CODES[shift.shift_code]}
+              </Badge>
+              <Badge variant="outline" className="text-base px-3 py-1">
+                <User className="h-3 w-3 mr-2" />
+                {shift.seller?.name}
+              </Badge>
+              <div className="ml-auto">
+                {getStatusBadge(closing.status)}
+              </div>
+            </div>
 
-          {/* Closing Lines */}
-          {hasClosing ? (
-            <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Formas de Pagamento</Label>
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="text-left p-3 font-medium">Forma</th>
-                      <th className="text-right p-3 font-medium">Sistema</th>
-                      <th className="text-right p-3 font-medium">Real</th>
-                      <th className="text-right p-3 font-medium">Diferença</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {closing.lines.map(line => (
-                      <tr key={line.id} className={cn(
-                        'border-t',
-                        line.diff_value !== 0 && 'bg-destructive/5'
-                      )}>
-                        <td className="p-3 font-medium">{line.label}</td>
-                        <td className="p-3 text-right font-mono">{formatCurrency(line.system_value)}</td>
-                        <td className="p-3 text-right font-mono">{formatCurrency(line.real_value)}</td>
-                        <td className={cn(
-                          'p-3 text-right font-mono font-medium',
-                          line.diff_value === 0 ? 'text-green-600' : 'text-destructive'
-                        )}>
-                          {formatCurrency(line.diff_value)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-muted/50 font-medium">
-                    <tr>
-                      <td className="p-3">TOTAL</td>
-                      <td className="p-3 text-right font-mono">{formatCurrency(totalSystem)}</td>
-                      <td className="p-3 text-right font-mono">{formatCurrency(totalReal)}</td>
+            {/* 2. Values Summary Cards */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="p-4 rounded-lg bg-muted/30 border">
+                <p className="text-sm text-muted-foreground mb-1">Valor Sistema</p>
+                <p className="text-xl font-bold font-mono">{formatCurrency(totalSystem)}</p>
+              </div>
+              <div className="p-4 rounded-lg bg-muted/30 border">
+                <p className="text-sm text-muted-foreground mb-1">Valor Declarado</p>
+                <p className="text-xl font-bold font-mono">{formatCurrency(totalReal)}</p>
+              </div>
+              <div className={cn(
+                "p-4 rounded-lg border",
+                totalDiff === 0 ? "bg-green-500/10 border-green-200" : "bg-destructive/10 border-destructive/20"
+              )}>
+                <p className={cn("text-sm mb-1", totalDiff === 0 ? "text-green-700" : "text-destructive")}>
+                  Diferença
+                </p>
+                <p className={cn("text-xl font-bold font-mono", totalDiff === 0 ? "text-green-700" : "text-destructive")}>
+                  {formatCurrency(totalDiff)}
+                </p>
+              </div>
+            </div>
+
+            {/* 3. Justification (if any) */}
+            {closing.justification_text && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+                <h4 className="flex items-center gap-2 font-semibold text-amber-700 mb-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Justificativa do Conferente
+                </h4>
+                <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-wrap">
+                  {closing.justification_text}
+                </p>
+              </div>
+            )}
+
+            {/* 4. Detailed Lines Table */}
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left p-3 font-medium">Forma de Pagamento</th>
+                    <th className="text-right p-3 font-medium">Sistema</th>
+                    <th className="text-right p-3 font-medium">Declarado</th>
+                    <th className="text-right p-3 font-medium">Diferença</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((line: any) => (
+                    <tr key={line.id} className="border-t hover:bg-muted/20">
+                      <td className="p-3 font-medium">{line.label}</td>
+                      <td className="p-3 text-right font-mono text-muted-foreground">{formatCurrency(Number(line.system_value))}</td>
+                      <td className="p-3 text-right font-mono">{formatCurrency(Number(line.real_value))}</td>
                       <td className={cn(
-                        'p-3 text-right font-mono',
-                        totalDiff === 0 ? 'text-green-600' : 'text-destructive'
+                        'p-3 text-right font-mono font-medium',
+                        Number(line.diff_value) === 0 ? 'text-green-600' : 'text-destructive'
                       )}>
-                        {formatCurrency(totalDiff)}
+                        {Number(line.diff_value) > 0 ? '+' : ''}{formatCurrency(Number(line.diff_value))}
                       </td>
                     </tr>
-                  </tfoot>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-              {closing.closed_by_user && (
-                <div className="text-sm text-muted-foreground pt-2">
-                  Conferido por <strong>{closing.closed_by_user.name}</strong> em{' '}
-                  {closing.closed_at ? formatDate(closing.closed_at) : '—'}
-                </div>
-              )}
+            {/* 5. Timeline */}
+            <div className="pt-4 border-t">
+              <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Linha do Tempo
+              </h4>
+              <div className="space-y-6 relative ml-2 border-l-2 border-muted pl-6 pb-2">
+                {activities.length > 0 ? (
+                  activities.map((log: any, index: number) => {
+                    const info = getTimelineEventInfo(log.description, log.event);
+                    const Icon = info.icon;
+                    return (
+                      <div key={log.id || index} className="relative">
+                        <div className={cn(
+                          "absolute -left-[31px] top-0 p-1.5 rounded-full border-2 border-background",
+                          info.color
+                        )}>
+                          <Icon className="h-3 w-3" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{info.text}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(log.created_at).toLocaleString('pt-BR')}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {log.causer ? (
+                              <span>Por <strong>{log.causer.name}</strong></span>
+                            ) : (
+                              <span>Sistema</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Nenhum evento registrado.</p>
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="py-8 text-center text-muted-foreground">
-              <FileCheck className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>Nenhum fechamento registrado para este turno.</p>
-              <p className="text-sm">O vendedor ainda não preencheu os valores.</p>
-            </div>
-          )}
-        </div>
+
+          </div>
+        ) : (
+          <div className="py-12 text-center text-muted-foreground">
+            <p>Nenhum dado encontrado.</p>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -262,6 +346,9 @@ function ShiftRow({ shift, onClick }: ShiftRowProps) {
 const HistoricoEnvelopesPage: React.FC = () => {
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
+  const [sellerFilter, setSellerFilter] = useState<string>('all');
+  const [shiftFilter, setShiftFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [selectedShift, setSelectedShift] = useState<CashShift | null>(null);
 
@@ -273,9 +360,14 @@ const HistoricoEnvelopesPage: React.FC = () => {
 
   // Queries
   const { data: storesData } = useAdminStores({ per_page: 100 });
+  const { data: usersData } = useAdminUsers({ per_page: 100 });
+
   const { data: shiftsData, isLoading } = useCashShifts({
     store_id: storeFilter !== 'all' ? parseInt(storeFilter) : undefined,
     date: dateFilter || undefined,
+    seller_id: sellerFilter !== 'all' ? parseInt(sellerFilter) : undefined,
+    shift_code: shiftFilter !== 'all' ? shiftFilter : undefined,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
     page,
     per_page: 25,
   });
@@ -403,6 +495,7 @@ const HistoricoEnvelopesPage: React.FC = () => {
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-wrap gap-4">
+            {/* Store Filter */}
             <div className="w-[200px]">
               <Label className="text-xs text-muted-foreground mb-1.5 block">Loja</Label>
               <Select value={storeFilter} onValueChange={setStoreFilter}>
@@ -421,25 +514,87 @@ const HistoricoEnvelopesPage: React.FC = () => {
               </Select>
             </div>
 
-            <div className="w-[180px]">
+            {/* Seller Filter */}
+            <div className="w-[200px]">
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Usuário</Label>
+              <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                <SelectTrigger>
+                  <User className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os usuários</SelectItem>
+                  {usersData?.data?.map((user: any) => (
+                    <SelectItem key={user.id} value={String(user.id)}>
+                      {user.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Shift Filter */}
+            <div className="w-[140px]">
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Turno</Label>
+              <Select value={shiftFilter} onValueChange={setShiftFilter}>
+                <SelectTrigger>
+                  <Clock className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {Object.entries(SHIFT_CODES).map(([code, label]) => (
+                    <SelectItem key={code} value={code}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Status Filter */}
+            <div className="w-[160px]">
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <FileCheck className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="open">Aberto</SelectItem>
+                  <SelectItem value="closed">Fechado</SelectItem>
+                  <SelectItem value="submitted">Aguardando Aprov.</SelectItem>
+                  <SelectItem value="approved">Aprovado</SelectItem>
+                  <SelectItem value="rejected">Rejeitado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Date Filter */}
+            <div className="w-[160px]">
               <Label className="text-xs text-muted-foreground mb-1.5 block">Data</Label>
               <Input
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                placeholder="Filtrar por data"
               />
             </div>
 
-            {(storeFilter !== 'all' || dateFilter) && (
-              <div className="flex items-end">
+            {/* Clear Filters */}
+            {(storeFilter !== 'all' || dateFilter || sellerFilter !== 'all' || shiftFilter !== 'all' || statusFilter !== 'all') && (
+              <div className="flex items-end pb-1">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
                     setStoreFilter('all');
                     setDateFilter('');
+                    setSellerFilter('all');
+                    setShiftFilter('all');
+                    setStatusFilter('all');
                   }}
+                  className="h-9 px-3 text-muted-foreground hover:text-foreground"
                 >
                   Limpar filtros
                 </Button>

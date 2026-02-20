@@ -9,6 +9,7 @@ import type {
     ApiResponse,
     RankingResponse,
     RankingFilters,
+    ConsolidatedPerformanceFilters,
     BirthdayEntry,
     StorePerformance,
     ConsolidatedPerformanceResponse,
@@ -16,6 +17,11 @@ import type {
     UserKpisFilters,
     UserKpisResponse
 } from '@/types/api';
+import type {
+    SalesFilters,
+    SalesResponse,
+    SaleDetailResponse
+} from '@/types/sales-history.types';
 
 // ============================================================
 // Ranking
@@ -38,10 +44,21 @@ export async function getRanking(filters: RankingFilters = {}): Promise<RankingR
  * Used by /gestao/lojas page
  */
 export async function getConsolidatedPerformance(
-    month?: string
+    filters: ConsolidatedPerformanceFilters | string = {}
 ): Promise<ConsolidatedPerformanceResponse> {
     const params: Record<string, unknown> = {};
-    if (month) params.month = month;
+
+    if (typeof filters === 'string') {
+        if (filters) {
+            params.month = filters;
+        }
+    } else {
+        Object.entries(filters).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') {
+                params[key] = value;
+            }
+        });
+    }
 
     const response = await apiGet<ApiResponse<ConsolidatedPerformanceResponse>>(
         '/reports/consolidated',
@@ -122,3 +139,112 @@ export async function getUserKpis(filters: UserKpisFilters = {}): Promise<UserKp
     return response;
 }
 
+// ============================================================
+// Sales History (PDV Reports)
+// ============================================================
+
+/**
+ * Get paginated sales history with filters
+ */
+export async function getSalesHistory(filters: SalesFilters = {}): Promise<SalesResponse> {
+    // Ensure store_id is not sent if undefined/null (Global View)
+    const cleanFilters: Record<string, any> = { ...filters };
+    if (!cleanFilters.store_id) {
+        delete cleanFilters.store_id;
+    }
+
+    const response = await apiGet<SalesResponse>('/pdv/reports/vendas', cleanFilters);
+    // The API returns the response object structure directly (data, summary, meta)
+    // We do NOT need to unwrap a 'data' property here as apiGet returns the body
+    // and the body IS the SalesResponse structure.
+    return response;
+}
+
+/**
+ * Get details for a specific sale
+ * @param useStorePdvId - if true, sends store_pdv_id instead of store_id (use when calling from operations listing)
+ */
+export async function getSaleDetails(
+    storeId: number | string,
+    idOperacao: number | string,
+    canal: string,
+    useStorePdvId: boolean = false
+): Promise<SaleDetailResponse> {
+    const params: Record<string, any> = {
+        id_operacao: idOperacao,
+        canal
+    };
+    if (useStorePdvId) {
+        params.store_pdv_id = storeId;
+    } else {
+        params.store_id = storeId;
+    }
+    const response = await apiGet<SaleDetailResponse>('/pdv/reports/vendas/detalhe', params);
+    return response;
+}
+
+// ============================================================
+// Aux Enpoints for Filters
+// ============================================================
+
+import type { SellerAux, ShiftAux, PaymentMethodAux } from '@/types/sales-history.types';
+
+export async function getStoreSellers(storeId?: number | string | null): Promise<SellerAux[]> {
+    const params: Record<string, any> = {};
+    if (storeId) {
+        params.store_id = storeId;
+    }
+    // If storeId is null/undefined, backend returns all sellers (Global Mode)
+
+    const response = await apiGet<any>('/pdv/reports/aux/vendedores', params);
+    // console.log('getStoreSellers response:', response);
+    return Array.isArray(response) ? response : (response.data || []);
+}
+
+export async function getStoreShifts(storeId: number | string, date: string): Promise<ShiftAux[]> {
+    const response = await apiGet<any>('/pdv/reports/turnos', { store_id: storeId, date });
+
+    // Handle specific structure for turnos endpoint which returns { data: { turnos: [...] } }
+    if (response?.data?.turnos && Array.isArray(response.data.turnos)) {
+        return response.data.turnos;
+    }
+
+    return Array.isArray(response) ? response : (response.data || []);
+}
+
+export async function getStorePaymentMethods(storeId: number | string): Promise<PaymentMethodAux[]> {
+    const response = await apiGet<any>('/pdv/reports/aux/meios-pagamento', { store_id: storeId });
+    // console.log('getStorePaymentMethods response:', response);
+    return Array.isArray(response) ? response : (response.data || []);
+}
+
+// ============================================================
+// PDV Operations (Unified: Vendas + Fechamentos)
+// ============================================================
+
+import type { OperacoesFilters, OperacoesResponse } from '@/types/pdv-operacoes.types';
+
+/**
+ * Get paginated operations history (vendas + fechamentos de caixa)
+ */
+export async function getOperacoes(filters: OperacoesFilters = {}): Promise<OperacoesResponse> {
+    const cleanFilters: Record<string, any> = {};
+
+    // Only include params that have a value
+    for (const [key, value] of Object.entries(filters)) {
+        if (value !== undefined && value !== null && value !== '') {
+            cleanFilters[key] = value;
+        }
+    }
+
+    const response = await apiGet<OperacoesResponse>('/pdv/reports/operacoes', cleanFilters);
+    return response;
+}
+
+/**
+ * Get unified closure details
+ */
+export async function getClosureDetails(closureUuid: string): Promise<any> {
+    const response = await apiGet<any>(`/cash/closure-diagnose`, { closure_uuid: closureUuid });
+    return response.data;
+}

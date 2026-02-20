@@ -192,6 +192,7 @@ export interface CurrentUserResponse {
  */
 export interface Store {
     id: number;
+    guid?: string | null;
     name: string;
     codigo: string;
     address: string;
@@ -607,9 +608,30 @@ export interface RankingResponse {
  */
 export interface RankingFilters {
     month?: string;
-    store_id?: number;
+    date?: string;
+    from?: string;
+    to?: string;
+    period?: ReportPeriodPreset;
+    store_id?: number | string;
     limit?: number;
     order?: 'asc' | 'desc';
+}
+
+export type ReportPeriodPreset =
+    | 'today'
+    | 'yesterday'
+    | 'last_7_days'
+    | 'last_30_days'
+    | 'this_month'
+    | 'last_month';
+
+export interface ConsolidatedPerformanceFilters {
+    month?: string;
+    date?: string;
+    from?: string;
+    to?: string;
+    period?: ReportPeriodPreset;
+    store_id?: number | string;
 }
 
 // ============================================================

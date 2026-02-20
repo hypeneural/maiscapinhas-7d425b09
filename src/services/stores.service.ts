@@ -5,6 +5,7 @@
  */
 
 import { apiGet, apiUpload } from '@/lib/api';
+import { getStoreGuid } from '@/lib/store-identifiers';
 import type {
     ApiResponse,
     PaginatedResponse,
@@ -17,8 +18,26 @@ import type {
  */
 export interface PublicStore {
     id: number;
+    guid?: string | null;
+    uuid?: string | null;
+    store_uuid?: string | null;
+    loja_uuid?: string | null;
     name: string;
     city: string;
+}
+
+type StoreWithGuidFallback = Store & {
+    guid?: string | null;
+    uuid?: string | null;
+    store_uuid?: string | null;
+    loja_uuid?: string | null;
+};
+
+function normalizeStoreGuid<T extends { guid?: string | null }>(store: T): T {
+    return {
+        ...store,
+        guid: getStoreGuid(store as unknown as { id: number; guid?: string | null; uuid?: string | null; store_uuid?: string | null; loja_uuid?: string | null }) ?? null,
+    };
 }
 
 /**
@@ -36,15 +55,50 @@ export interface PublicStoreFilters {
  * Returns only id, name, city - minimal data for selects/dropdowns.
  */
 export async function getAllPublicStores(filters?: PublicStoreFilters): Promise<PaginatedResponse<PublicStore>> {
-    return apiGet<PaginatedResponse<PublicStore>>('/stores/all', filters);
+    const response = await apiGet<PaginatedResponse<PublicStore>>('/stores/all', filters);
+    return {
+        ...response,
+        data: response.data.map((store) => normalizeStoreGuid(store)),
+    };
 }
 
 /**
  * Get all stores accessible by current user
  */
 export async function getStores(): Promise<Store[]> {
-    const response = await apiGet<ApiResponse<Store[]>>('/stores');
-    return response.data;
+    const response = await apiGet<ApiResponse<StoreWithGuidFallback[]>>('/stores');
+    const stores = response.data.map((store) => normalizeStoreGuid(store));
+
+    const missingGuidStoreIds = stores
+        .filter((store) => !store.guid)
+        .map((store) => store.id);
+
+    if (missingGuidStoreIds.length === 0) {
+        return stores;
+    }
+
+    // Fallback for older API payloads that omit guid in /stores.
+    try {
+        const allStores = await getAllPublicStores({ per_page: 200 });
+        const publicGuidByStoreId = new Map(
+            allStores.data
+                .map((store) => [store.id, getStoreGuid(store as unknown as { id: number; guid?: string | null; uuid?: string | null; store_uuid?: string | null; loja_uuid?: string | null })] as const)
+                .filter((entry): entry is readonly [number, string] => entry[1] !== null)
+        );
+
+        return stores.map((store) => {
+            if (store.guid) {
+                return store;
+            }
+
+            return {
+                ...store,
+                guid: publicGuidByStoreId.get(store.id) ?? null,
+            };
+        });
+    } catch {
+        return stores;
+    }
 }
 
 /**

@@ -29,6 +29,7 @@ import type {
     RankingParams,
     StorePerformanceParams,
     CashIntegrityParams,
+    ConsolidatedReportParams,
 } from '@/types/dashboard.types';
 
 // ============================================================
@@ -59,8 +60,8 @@ export const dashboardKeys = {
         [...dashboardKeys.all, 'ranking', params] as const,
     storePerformance: (params: StorePerformanceParams) =>
         [...dashboardKeys.all, 'store-performance', params] as const,
-    consolidated: (month?: string) =>
-        [...dashboardKeys.all, 'consolidated', month] as const,
+    consolidated: (params?: ConsolidatedReportParams) =>
+        [...dashboardKeys.all, 'consolidated', params] as const,
 };
 
 // ============================================================
@@ -196,10 +197,10 @@ export function useStorePerformance(params: StorePerformanceParams) {
 /**
  * Hook to get consolidated multi-store report
  */
-export function useConsolidatedReport(month?: string) {
+export function useConsolidatedReport(params?: ConsolidatedReportParams) {
     return useQuery({
-        queryKey: dashboardKeys.consolidated(month),
-        queryFn: () => getConsolidatedReport(month),
+        queryKey: dashboardKeys.consolidated(params),
+        queryFn: () => getConsolidatedReport(params),
         ...CACHE_STRATEGIES.reports,
     });
 }

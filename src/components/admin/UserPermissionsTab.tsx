@@ -108,11 +108,26 @@ export const UserPermissionsTab: React.FC<UserPermissionsTabProps> = ({ userId }
     ) ?? [];
 
     // Get all permissions as flat list for selection
-    const availablePermissions = allPermissions
-        ? Object.entries(allPermissions).flatMap(([module, perms]) =>
-            perms.map(p => ({ ...p, module }))
-        )
-        : [];
+    const availablePermissions = React.useMemo(() => {
+        if (!allPermissions) return [];
+
+        // Handle ModuleGroup[] structure (current API)
+        if (Array.isArray(allPermissions)) {
+            return allPermissions.flatMap(group => {
+                const perms = [
+                    ...(group.abilities || []),
+                    ...(group.screens || []),
+                    ...(group.features || [])
+                ];
+                return perms.map(p => ({ ...p, module: group.module_display || group.module }));
+            });
+        }
+
+        // Fallback for Record<string, Permission[]> (legacy/safety)
+        return Object.entries(allPermissions).flatMap(([module, perms]) =>
+            Array.isArray(perms) ? perms.map(p => ({ ...p, module })) : []
+        );
+    }, [allPermissions]);
 
     const isExpiring = (expiresAt: string | null) => {
         if (!expiresAt) return false;
@@ -202,8 +217,8 @@ export const UserPermissionsTab: React.FC<UserPermissionsTabProps> = ({ userId }
                         >
                             <div className="flex items-center gap-3">
                                 <div className={`p-2 rounded-lg ${override.type === 'grant'
-                                        ? 'bg-green-500/10'
-                                        : 'bg-red-500/10'
+                                    ? 'bg-green-500/10'
+                                    : 'bg-red-500/10'
                                     }`}>
                                     {override.type === 'grant' ? (
                                         <Check className="h-4 w-4 text-green-600" />

@@ -76,6 +76,7 @@ export interface CashClosing {
   lines: CashClosingLine[];
   cash_shift?: CashShift;
   closed_by_user?: { id: number; name: string } | null;
+  activities?: any[]; // Activity log
   created_at: string;
   updated_at: string;
 }
@@ -136,9 +137,11 @@ export interface DivergentShiftsResponse {
 export interface CashShiftFilters {
   store_id?: number;
   date?: string;
-  status?: CashShiftStatus;
-  per_page?: number;
+  status?: string;
+  seller_id?: number;
+  shift_code?: string;
   page?: number;
+  per_page?: number;
 }
 
 export interface CreateCashShiftRequest {
@@ -241,6 +244,70 @@ export interface CashIntegrityReport {
 export interface CashIntegrityReportResponse {
   data: CashIntegrityReport;
   meta: { timestamp: string };
+}
+
+export interface PdvPaymentBreakdown {
+  id_finalizador: number;
+  label: string;
+  value: number;
+  qtd_vendas?: number;
+}
+
+export interface PdvClosureDetail {
+  closure_uuid: string;
+  sequencial: number;
+  periodo: string;
+  sistema_caixa: number;
+  sistema_loja: number;
+  entries_expected: number;
+  declarado: number;
+  falta: number;
+  sobra: number;
+  operador: string | null;
+  responsavel: {
+    nome: string | null;
+    guid: string | null;
+    login: string | null;
+  };
+  canais: string[];
+  data_hora_inicio: string | null;
+  data_hora_termino: string | null;
+}
+
+export interface PdvClosureDataResponse {
+  data: {
+    system_total: number;
+    system_total_caixa: number;
+    system_total_loja: number;
+    declared_total: number;
+    falta_total: number;
+    sobra_total: number;
+    entries_expected: number;
+    declared_consistent: boolean;
+    has_loja_sales: boolean;
+    canais_presentes: string[];
+    payments_sistema: PdvPaymentBreakdown[];
+    payments_declarado: PdvPaymentBreakdown[];
+    payments_falta: PdvPaymentBreakdown[];
+    payments_sobra: PdvPaymentBreakdown[];
+    payments: Array<{ label: string; value: number }>;
+    closures_found: number;
+    details: PdvClosureDetail[];
+  };
+}
+
+export interface SmartFilters {
+  stores: Array<{ id: number; name: string }>;
+  dates: string[];
+  shifts: string[];
+  sellers: {
+    suggested: { id: number; name: string; guid: string } | null;
+    all: Array<{ id: number; name: string; guid: string }>;
+  };
+}
+
+export interface SmartFiltersResponse {
+  data: SmartFilters;
 }
 
 // ============================================================

@@ -21,6 +21,7 @@ import type {
     CashIntegrityReport,
     CashIntegrityParams,
     ConsolidatedReport,
+    ConsolidatedReportParams,
     PendingShift,
     DivergentShift,
 } from '@/types/dashboard.types';
@@ -97,8 +98,9 @@ export async function getCashIntegrity(
 /**
  * Get consolidated multi-store report (Admin only)
  */
-export async function getConsolidatedReport(month?: string): Promise<ConsolidatedReport> {
-    const params = month ? { month } : {};
+export async function getConsolidatedReport(
+    params?: ConsolidatedReportParams
+): Promise<ConsolidatedReport> {
     const response = await apiGet<ApiResponse<ConsolidatedReport>>('/reports/consolidated', params);
     return response.data;
 }

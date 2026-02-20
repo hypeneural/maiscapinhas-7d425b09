@@ -15,6 +15,33 @@ import type {
     GoalListFilters,
 } from '@/types/admin.types';
 
+const toNumber = (value: unknown): number => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : 0;
+    }
+
+    if (typeof value === 'string') {
+        const parsed = Number(value.replace(',', '.'));
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeGoal = (goal: MonthlyGoalResponse): MonthlyGoalResponse => ({
+    ...goal,
+    store_id: Number(goal.store_id),
+    goal_amount: toNumber(goal.goal_amount),
+    splits: Array.isArray(goal.splits)
+        ? goal.splits.map((split) => ({
+            ...split,
+            user_id: Number(split.user_id),
+            percent: toNumber(split.percent),
+        }))
+        : [],
+});
+
 /**
  * List monthly goals with optional filters
  */
@@ -27,7 +54,12 @@ export async function listGoals(
     if (filters?.per_page) params.per_page = filters.per_page;
     if (filters?.page) params.page = filters.page;
 
-    return apiGet<PaginatedResponse<MonthlyGoalResponse>>('/goals/monthly', params);
+    const response = await apiGet<PaginatedResponse<MonthlyGoalResponse>>('/goals/monthly', params);
+
+    return {
+        ...response,
+        data: Array.isArray(response.data) ? response.data.map(normalizeGoal) : [],
+    };
 }
 
 /**
@@ -35,7 +67,7 @@ export async function listGoals(
  */
 export async function getGoal(id: number): Promise<MonthlyGoalResponse> {
     const response = await apiGet<ApiResponse<MonthlyGoalResponse>>(`/goals/monthly/${id}`);
-    return response.data;
+    return normalizeGoal(response.data);
 }
 
 /**
@@ -44,7 +76,7 @@ export async function getGoal(id: number): Promise<MonthlyGoalResponse> {
  */
 export async function createGoal(data: CreateGoalRequest): Promise<MonthlyGoalResponse> {
     const response = await apiPost<ApiResponse<MonthlyGoalResponse>>('/goals/monthly', data);
-    return response.data;
+    return normalizeGoal(response.data);
 }
 
 /**
@@ -55,7 +87,7 @@ export async function updateGoal(
     data: UpdateGoalRequest
 ): Promise<MonthlyGoalResponse> {
     const response = await apiPut<ApiResponse<MonthlyGoalResponse>>(`/goals/monthly/${id}`, data);
-    return response.data;
+    return normalizeGoal(response.data);
 }
 
 /**
@@ -76,11 +108,16 @@ export async function setSplits(
     id: number,
     splits: SetSplitsRequest['splits']
 ): Promise<MonthlyGoalResponse> {
+    const normalizedSplits = splits.map((split) => ({
+        user_id: Number(split.user_id),
+        percent: toNumber(split.percent),
+    }));
+
     const response = await apiPut<ApiResponse<MonthlyGoalResponse>>(
         `/goals/monthly/${id}/splits`,
-        { splits }
+        { splits: normalizedSplits }
     );
-    return response.data;
+    return normalizeGoal(response.data);
 }
 
 /**

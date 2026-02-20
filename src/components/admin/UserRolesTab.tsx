@@ -52,7 +52,7 @@ interface UserRolesTabProps {
 // API calls for user roles
 async function getUserRoles(userId: number): Promise<UserRole[]> {
     const response = await api.get<{ roles: UserRole[] }>(`/admin/users/${userId}/roles`);
-    return response.data.roles;
+    return response.data?.roles ?? [];
 }
 
 async function assignUserRole(userId: number, data: { role_id: number; store_id?: number }): Promise<void> {
