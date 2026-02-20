@@ -258,7 +258,7 @@ const App = () => (
                   </ProtectedRoute>
                 } />
                 <Route path="/gestao/historico-operacoes" element={
-                  <ProtectedRoute requiredRoles={['admin']}>
+                  <ProtectedRoute requiredRoles={['conferente', 'gerente', 'admin']}>
                     <OperacoesHistory />
                   </ProtectedRoute>
                 } />

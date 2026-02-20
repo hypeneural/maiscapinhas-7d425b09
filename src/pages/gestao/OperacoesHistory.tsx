@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { RefreshCw, History, ShieldCheck, Store } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { getOperacoes } from '@/services/reports.service';
 import { getStores } from '@/services/stores.service';
@@ -12,14 +13,84 @@ import { OperacoesTable } from './operacoes/OperacoesTable';
 import { OperacaoDetailSheet } from './operacoes/OperacaoDetailSheet';
 import type { OperacoesFilters as FilterType, Operacao } from '@/types/pdv-operacoes.types';
 
-const OperacoesHistory: React.FC = () => {
-    const [filters, setFilters] = useState<FilterType>({
-        page: 1,
-        per_page: 15,
-        sort: 'desc',
-        from: format(new Date(), 'yyyy-MM-dd'),
-        to: format(new Date(), 'yyyy-MM-dd'),
+const parsePositiveInt = (value: string | null, fallback?: number): number | undefined => {
+    if (!value || value.trim() === '') return fallback;
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed) || parsed <= 0) return fallback;
+    return parsed;
+};
+
+const parseSort = (value: string | null): 'asc' | 'desc' => (value === 'asc' ? 'asc' : 'desc');
+
+const toQueryParams = (filters: FilterType): URLSearchParams => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+            params.set(key, String(value));
+        }
     });
+    return params;
+};
+
+const buildInitialFilters = (searchParams: URLSearchParams): FilterType => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const from = searchParams.get('from') || today;
+    const to = searchParams.get('to') || from;
+
+    const initialFilters: FilterType = {
+        page: parsePositiveInt(searchParams.get('page'), 1),
+        per_page: Math.min(parsePositiveInt(searchParams.get('per_page'), 15) || 15, 100),
+        sort: parseSort(searchParams.get('sort')),
+        from,
+        to,
+    };
+
+    const storeId = searchParams.get('store_id');
+    if (storeId) initialFilters.store_id = storeId;
+
+    const turnoSeq = parsePositiveInt(searchParams.get('turno_seq'));
+    if (turnoSeq !== undefined) initialFilters.turno_seq = turnoSeq;
+
+    const tipoOperacao = searchParams.get('tipo_operacao');
+    if (tipoOperacao === 'venda' || tipoOperacao === 'fechamento_caixa') {
+        initialFilters.tipo_operacao = tipoOperacao;
+    }
+
+    const status = searchParams.get('status');
+    if (status) initialFilters.status = status;
+
+    const canal = searchParams.get('canal');
+    if (canal === 'HIPER_CAIXA' || canal === 'HIPER_LOJA') {
+        initialFilters.canal = canal;
+    }
+
+    const vendedorIdRaw = searchParams.get('vendedor_id');
+    if (vendedorIdRaw) {
+        const vendedorId = parsePositiveInt(vendedorIdRaw);
+        initialFilters.vendedor_id = vendedorId ?? vendedorIdRaw;
+    }
+
+    const meioPagamento = searchParams.get('meio_pagamento');
+    if (meioPagamento) initialFilters.meio_pagamento = meioPagamento;
+
+    const idFinalizadorRaw = searchParams.get('id_finalizador');
+    if (idFinalizadorRaw) {
+        const idFinalizador = parsePositiveInt(idFinalizadorRaw);
+        initialFilters.id_finalizador = idFinalizador ?? idFinalizadorRaw;
+    }
+
+    const minTotal = searchParams.get('min_total');
+    if (minTotal) initialFilters.min_total = minTotal;
+
+    const maxTotal = searchParams.get('max_total');
+    if (maxTotal) initialFilters.max_total = maxTotal;
+
+    return initialFilters;
+};
+
+const OperacoesHistory: React.FC = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [filters, setFilters] = useState<FilterType>(() => buildInitialFilters(searchParams));
 
     const [selectedOp, setSelectedOp] = useState<Operacao | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -32,6 +103,15 @@ const OperacoesHistory: React.FC = () => {
     const shouldWaitStoreMetadata = Boolean(filters.store_id)
         && /^\d+$/.test(String(filters.store_id))
         && isLoadingStores;
+
+    const serializedFilters = useMemo(() => toQueryParams(filters).toString(), [filters]);
+
+    useEffect(() => {
+        if (searchParams.toString() === serializedFilters) {
+            return;
+        }
+        setSearchParams(serializedFilters, { replace: true });
+    }, [serializedFilters, searchParams, setSearchParams]);
 
     // ── Main Data Query ──
     const { data, isLoading, isError, refetch, isFetching } = useQuery({
