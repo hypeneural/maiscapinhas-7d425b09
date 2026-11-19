@@ -27,6 +27,7 @@ const QuebraCaixa = lazy(() => import("@/pages/gestao/QuebraCaixa"));
 const KpisColaboradores = lazy(() => import("@/pages/gestao/KpisColaboradores"));
 const SalesHistory = lazy(() => import("@/pages/gestao/SalesHistory"));
 const SalesSyncManagement = lazy(() => import("@/pages/gestao/SalesSyncManagement"));
+const PdvDebug = lazy(() => import("@/pages/gestao/PdvDebug"));
 const OperacoesHistory = lazy(() => import("@/pages/gestao/OperacoesHistory"));
 const MetasMensais = lazy(() => import("@/pages/config/MetasMensais"));
 const TabelaBonus = lazy(() => import("@/pages/config/TabelaBonus"));
@@ -258,13 +259,18 @@ const App = () => (
                   </ProtectedRoute>
                 } />
                 <Route path="/gestao/historico-operacoes" element={
-                  <ProtectedRoute requiredRoles={['admin']}>
+                  <ProtectedRoute requiredRoles={['conferente', 'gerente', 'admin']}>
                     <OperacoesHistory />
                   </ProtectedRoute>
                 } />
                 <Route path="/gestao/monitoramento-pdv" element={
                   <ProtectedRoute requiredRoles={['admin']}>
                     <SalesSyncManagement />
+                  </ProtectedRoute>
+                } />
+                <Route path="/gestao/debug-pdv" element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <PdvDebug />
                   </ProtectedRoute>
                 } />
                 <Route path="/admin/pdv/mapping" element={

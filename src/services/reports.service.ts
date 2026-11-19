@@ -14,6 +14,7 @@ import type {
     StorePerformance,
     ConsolidatedPerformanceResponse,
     CashIntegrityData,
+    GlobalCashIntegrityData,
     UserKpisFilters,
     UserKpisResponse
 } from '@/types/api';
@@ -101,6 +102,25 @@ export async function getCashIntegrity(
 
     const response = await apiGet<ApiResponse<CashIntegrityData>>(
         '/reports/cash-integrity',
+        params
+    );
+    return response.data;
+}
+
+/**
+ * Get global cash integrity report (all stores aggregated)
+ * Used by /gestao/quebra page (initial view without store selected)
+ */
+export async function getGlobalCashIntegrity(
+    month?: string,
+    storeId?: number
+): Promise<GlobalCashIntegrityData> {
+    const params: Record<string, unknown> = {};
+    if (month) params.month = month;
+    if (storeId) params.store_id = storeId;
+
+    const response = await apiGet<ApiResponse<GlobalCashIntegrityData>>(
+        '/reports/cash-integrity-global',
         params
     );
     return response.data;

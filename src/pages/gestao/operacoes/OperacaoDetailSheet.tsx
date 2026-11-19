@@ -15,9 +15,8 @@ import {
 import { getSaleDetails, getClosureDetails } from '@/services/reports.service';
 import { getStores } from '@/services/stores.service';
 import { resolveStoreIdentifierForReports } from '@/lib/store-identifiers';
+import { formatDateTimeSaoPaulo } from '@/lib/datetime';
 import { formatCurrency } from '@/lib/format';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import type { Operacao, ClosureDetail, ClosurePagamentoPorMeio } from '@/types/pdv-operacoes.types';
 import { getChannelVisual, getPaymentVisual, getStatusVisual, getTypeVisual } from './operacaoVisuals';
@@ -29,11 +28,7 @@ interface OperacaoDetailSheetProps {
 }
 
 function formatDT(isoString: string): string {
-    try {
-        return format(parseISO(isoString), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
-    } catch {
-        return '—';
-    }
+    return formatDateTimeSaoPaulo(isoString, '—').replace(',', ' às');
 }
 
 const periodoLabels: Record<string, string> = {

@@ -33,6 +33,7 @@ import {
     Tv,
     Award,
     Activity,
+    Bug,
     Plug,
     type LucideIcon,
 } from 'lucide-react';
@@ -263,6 +264,14 @@ export const menuSections: MenuSection[] = [
                 icon: Activity,
                 path: '/gestao/monitoramento-pdv',
                 roles: ['admin'],
+            },
+            {
+                id: 'debug-pdv',
+                label: 'Debug PDV',
+                icon: Bug,
+                path: '/gestao/debug-pdv',
+                roles: ['admin'],
+                tooltip: 'Busca e analise de payloads brutos recebidos no webhook PDV',
             },
             {
                 id: 'pdv-mapping',
