@@ -186,7 +186,7 @@ export const menuSections: MenuSection[] = [
         items: [
             {
                 id: 'lancar-turno',
-                label: 'Lançar Turno',
+                label: 'Conferir Caixa',
                 icon: FileCheck,
                 path: '/conferencia/lancar',
                 permissions: ['shift:create', 'closing:submit'],

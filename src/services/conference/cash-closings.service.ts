@@ -5,14 +5,18 @@
  */
 
 import { apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiUpload, apiDelete } from '@/lib/api/client';
 import type {
     CashClosing,
     CashClosingDetailResponse,
+    CashClosingAttachment,
     CreateClosingRequest,
     UpdateClosingRequest,
     RejectClosingRequest,
     CashIntegrityReportResponse,
     SmartFiltersResponse,
+    ConferencePendingTurnsResponse,
+    PdvClosureDataResponse,
 } from '@/types/conference.types';
 
 const BASE_URL = '/cash/closings';
@@ -88,15 +92,13 @@ export async function getPdvClosureData(
     storeId: number,
     date: string,
     shiftCode: string
-): Promise<any> { // Using any for now or specific response type if imported
-    return apiGet<any>('/cash/pdv-closure-data', {
+): Promise<PdvClosureDataResponse> {
+    return apiGet<PdvClosureDataResponse>('/cash/pdv-closure-data', {
         store_id: storeId,
         date,
         shift_code: shiftCode,
     });
 }
-
-
 
 /**
  * Get closure filters (stores -> dates -> shifts -> sellers)
@@ -106,12 +108,54 @@ export async function getClosureFilters(
     date?: string,
     shiftCode?: string
 ): Promise<SmartFiltersResponse> {
-    const params: Record<string, any> = {};
+    const params: Record<string, string | number> = {};
     if (storeId) params.store_id = storeId;
     if (date) params.date = date;
     if (shiftCode) params.shift_code = shiftCode;
 
     return apiGet<SmartFiltersResponse>('/cash/closure-filters', params);
+}
+
+interface ConferencePendingFilters {
+    store_id?: number;
+    date?: string;
+    shift_code?: string;
+    limit?: number;
+}
+
+/**
+ * Get pending conference turns (closed/unified and not yet conferenced)
+ */
+export async function getConferencePendingTurns(
+    filters?: ConferencePendingFilters
+): Promise<ConferencePendingTurnsResponse> {
+    const params: Record<string, string | number> = {};
+    if (filters?.store_id) params.store_id = filters.store_id;
+    if (filters?.date) params.date = filters.date;
+    if (filters?.shift_code) params.shift_code = filters.shift_code;
+    if (filters?.limit) params.limit = filters.limit;
+
+    return apiGet<ConferencePendingTurnsResponse>('/cash/conference-pending-turns', params);
+}
+
+/**
+ * Upload attachment to a closing
+ */
+export async function uploadAttachment(
+    shiftId: number,
+    file: File
+): Promise<{ data: CashClosingAttachment }> {
+    return apiUpload<{ data: CashClosingAttachment }>(`${BASE_URL}/${shiftId}/attachments`, file, 'file');
+}
+
+/**
+ * Delete attachment from a closing
+ */
+export async function deleteClosingAttachment(
+    shiftId: number,
+    attachmentId: number
+): Promise<{ data: { message: string } }> {
+    return apiDelete<{ data: { message: string } }>(`${BASE_URL}/${shiftId}/attachments/${attachmentId}`);
 }
 
 export const cashClosingsService = {
@@ -125,4 +169,8 @@ export const cashClosingsService = {
 
     getPdvClosureData: getPdvClosureData,
     getFilters: getClosureFilters,
+    getConferencePendingTurns: getConferencePendingTurns,
+
+    uploadAttachment,
+    deleteAttachment: deleteClosingAttachment,
 };

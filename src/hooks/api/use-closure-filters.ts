@@ -8,7 +8,7 @@ export function useClosureFilters(storeId?: number, date?: string, shiftCode?: s
             const response = await cashClosingsService.getFilters(storeId, date, shiftCode);
             return response.data;
         },
-        staleTime: 1000 * 60 * 5, // 5 minutes
         placeholderData: (previousData) => previousData,
+        staleTime: 1000 * 60 * 5, // 5 minutes
     });
 }

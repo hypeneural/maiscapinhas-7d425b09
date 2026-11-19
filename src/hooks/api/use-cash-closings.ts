@@ -24,6 +24,10 @@ export const cashClosingKeys = {
     detail: (shiftId: number) => [...cashClosingKeys.details(), shiftId] as const,
     reports: () => [...cashClosingKeys.all, 'report'] as const,
     report: (storeId: number, month: string) => [...cashClosingKeys.reports(), storeId, month] as const,
+    closureFilters: () => ['closure-filters'] as const,
+    pendingTurnsRoot: () => [...cashClosingKeys.all, 'pending-turns'] as const,
+    pendingTurns: (filters?: { store_id?: number; date?: string; shift_code?: string; limit?: number }) =>
+        [...cashClosingKeys.pendingTurnsRoot(), filters] as const,
 };
 
 // ============================================================
@@ -81,6 +85,21 @@ export function usePdvClosureData(
     });
 }
 
+/**
+ * Get pending conference turns
+ */
+export function useConferencePendingTurns(
+    filters?: { store_id?: number; date?: string; shift_code?: string; limit?: number },
+    enabled = true
+) {
+    return useQuery({
+        queryKey: cashClosingKeys.pendingTurns(filters),
+        queryFn: () => cashClosingsService.getConferencePendingTurns(filters),
+        enabled,
+        staleTime: 60 * 1000, // 1 minute
+    });
+}
+
 // ============================================================
 // Mutations
 // ============================================================
@@ -98,9 +117,11 @@ export function useCreateClosing() {
         onSuccess: (_, { shiftId }) => {
             queryClient.invalidateQueries({ queryKey: cashClosingKeys.detail(shiftId) });
             queryClient.invalidateQueries({ queryKey: cashShiftKeys.detail(shiftId) });
+            queryClient.invalidateQueries({ queryKey: cashClosingKeys.closureFilters() });
+            queryClient.invalidateQueries({ queryKey: cashClosingKeys.pendingTurnsRoot() });
             toast({
                 title: 'Fechamento criado',
-                description: 'Os valores foram salvos como rascunho.',
+                description: 'Os valores foram salvos para conferencia.',
             });
         },
         onError: (error: Error) => {
@@ -125,6 +146,8 @@ export function useUpdateClosing() {
             cashClosingsService.update(shiftId, data),
         onSuccess: (_, { shiftId }) => {
             queryClient.invalidateQueries({ queryKey: cashClosingKeys.detail(shiftId) });
+            queryClient.invalidateQueries({ queryKey: cashClosingKeys.closureFilters() });
+            queryClient.invalidateQueries({ queryKey: cashClosingKeys.pendingTurnsRoot() });
             toast({
                 title: 'Fechamento atualizado',
                 description: 'Os valores foram atualizados.',
@@ -149,12 +172,47 @@ export function useSubmitClosing() {
 
     return useMutation({
         mutationFn: (shiftId: number) => cashClosingsService.submit(shiftId),
-        onSuccess: (_, shiftId) => {
+        onSuccess: (response, shiftId) => {
             queryClient.invalidateQueries({ queryKey: cashClosingKeys.detail(shiftId) });
             queryClient.invalidateQueries({ queryKey: cashShiftKeys.all });
+            queryClient.invalidateQueries({ queryKey: cashClosingKeys.closureFilters() });
+            queryClient.invalidateQueries({ queryKey: cashClosingKeys.pendingTurnsRoot() });
+
+            const closing = response?.data;
+            const totalDiff = closing?.lines?.reduce((sum, line) => {
+                const diff = Number.parseFloat(String(line.diff_value ?? 0));
+                return sum + (Number.isFinite(diff) ? diff : 0);
+            }, 0) ?? 0;
+            const hasDivergence = Math.abs(totalDiff) >= 0.01;
+            const hasJustification = Boolean(closing?.justification_text?.trim());
+
+            if (closing?.status === 'approved') {
+                if (hasDivergence && !hasJustification) {
+                    toast({
+                        title: 'Concluido com divergencia',
+                        description: 'Conferencia validada sem justificativa. Este resultado impacta o bonus do vendedor.',
+                    });
+                    return;
+                }
+
+                toast({
+                    title: 'Conferencia concluida',
+                    description: 'O caixa foi conferido e validado com sucesso.',
+                });
+                return;
+            }
+
+            if (closing?.status === 'submitted') {
+                toast({
+                    title: 'Enviado para aprovacao',
+                    description: 'Existe divergencia com justificativa. O fechamento aguarda validacao do gestor.',
+                });
+                return;
+            }
+
             toast({
-                title: 'Enviado para conferência',
-                description: 'O fechamento foi enviado para aprovação.',
+                title: 'Conferencia atualizada',
+                description: 'O fechamento foi processado com sucesso.',
             });
         },
         onError: (error: Error) => {
@@ -179,6 +237,8 @@ export function useApproveClosing() {
         onSuccess: (_, shiftId) => {
             queryClient.invalidateQueries({ queryKey: cashClosingKeys.detail(shiftId) });
             queryClient.invalidateQueries({ queryKey: cashShiftKeys.all });
+            queryClient.invalidateQueries({ queryKey: cashClosingKeys.closureFilters() });
+            queryClient.invalidateQueries({ queryKey: cashClosingKeys.pendingTurnsRoot() });
             toast({
                 title: 'Fechamento aprovado',
                 description: 'O caixa foi conferido e fechado com sucesso.',
@@ -207,15 +267,68 @@ export function useRejectClosing() {
         onSuccess: (_, { shiftId }) => {
             queryClient.invalidateQueries({ queryKey: cashClosingKeys.detail(shiftId) });
             queryClient.invalidateQueries({ queryKey: cashShiftKeys.all });
+            queryClient.invalidateQueries({ queryKey: cashClosingKeys.closureFilters() });
+            queryClient.invalidateQueries({ queryKey: cashClosingKeys.pendingTurnsRoot() });
             toast({
-                title: 'Fechamento rejeitado',
-                description: 'O vendedor deverá corrigir os valores.',
-                variant: 'destructive',
+                title: 'Justificativa Reprovada',
             });
         },
         onError: (error: Error) => {
             toast({
                 title: 'Erro ao rejeitar',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}
+
+/**
+ * Upload attachment to a closing
+ */
+export function useUploadAttachment() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: ({ shiftId, file }: { shiftId: number; file: File }) =>
+            cashClosingsService.uploadAttachment(shiftId, file),
+        onSuccess: (_, { shiftId }) => {
+            queryClient.invalidateQueries({ queryKey: cashClosingKeys.detail(shiftId) });
+            toast({
+                title: 'Anexo enviado',
+                description: 'Documento anexado com sucesso.',
+            });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Erro ao enviar anexo',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}
+
+/**
+ * Delete attachment from a closing
+ */
+export function useDeleteAttachment() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: ({ shiftId, attachmentId }: { shiftId: number; attachmentId: number }) =>
+            cashClosingsService.deleteAttachment(shiftId, attachmentId),
+        onSuccess: (_, { shiftId }) => {
+            queryClient.invalidateQueries({ queryKey: cashClosingKeys.detail(shiftId) });
+            toast({
+                title: 'Anexo removido',
+            });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Erro ao remover anexo',
                 description: error.message,
                 variant: 'destructive',
             });
