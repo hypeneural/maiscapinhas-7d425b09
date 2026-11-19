@@ -293,11 +293,11 @@ export function useCreateTvWebhook() {
     return useMutation({
         mutationFn: (payload: CreateTvWebhookPayload) => tvService.createWebhook(payload),
         onSuccess: (res) => {
-            toast.success(res.message || 'Webhook criado com sucesso!');
+            toast.success(res.message || 'Alerta cadastrado com sucesso!');
             queryClient.invalidateQueries({ queryKey: tvAdsKeys.webhooks() });
         },
         onError: (err: any) => {
-            toast.error(err?.message || 'Erro ao cadastrar webhook.');
+            toast.error(err?.message || 'Erro ao cadastrar alerta.');
         },
     });
 }
@@ -312,11 +312,11 @@ export function useUpdateTvWebhook() {
         mutationFn: ({ id, payload }: { id: number; payload: UpdateTvWebhookPayload }) =>
             tvService.updateWebhook(id, payload),
         onSuccess: (res) => {
-            toast.success(res.message || 'Webhook atualizado!');
+            toast.success(res.message || 'Alerta atualizado com sucesso!');
             queryClient.invalidateQueries({ queryKey: tvAdsKeys.webhooks() });
         },
         onError: (err: any) => {
-            toast.error(err?.message || 'Erro ao atualizar webhook.');
+            toast.error(err?.message || 'Erro ao atualizar alerta.');
         },
     });
 }
@@ -330,11 +330,11 @@ export function useDeleteTvWebhook() {
     return useMutation({
         mutationFn: (id: number) => tvService.deleteWebhook(id),
         onSuccess: (res) => {
-            toast.success(res.message || 'Webhook removido.');
+            toast.success(res.message || 'Alerta removido com sucesso.');
             queryClient.invalidateQueries({ queryKey: tvAdsKeys.webhooks() });
         },
         onError: (err: any) => {
-            toast.error(err?.message || 'Erro ao remover webhook.');
+            toast.error(err?.message || 'Erro ao remover alerta.');
         },
     });
 }
@@ -348,12 +348,12 @@ export function useTestTvWebhook() {
     return useMutation({
         mutationFn: (id: number) => tvService.testWebhook(id),
         onSuccess: (res) => {
-            toast.success(res.message || 'Evento de teste entregue!');
+            toast.success(res.message || 'Envio de teste realizado com sucesso!');
             queryClient.invalidateQueries({ queryKey: tvAdsKeys.webhooks() });
             queryClient.invalidateQueries({ queryKey: [...tvAdsKeys.all, 'webhook-deliveries'] });
         },
         onError: (err: any) => {
-            toast.error(err?.message || 'Falha na entrega do evento de teste.');
+            toast.error(err?.message || 'Falha ao enviar o teste.');
             queryClient.invalidateQueries({ queryKey: tvAdsKeys.webhooks() });
             queryClient.invalidateQueries({ queryKey: [...tvAdsKeys.all, 'webhook-deliveries'] });
         },

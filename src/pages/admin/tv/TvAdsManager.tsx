@@ -87,7 +87,7 @@ import {
     Calendar,
     Palette,
     Loader2,
-    Webhook,
+    BellRing,
     AlertTriangle,
 } from 'lucide-react';
 import { uploadMediaChunked, type ChunkUploadProgress } from '@/lib/upload/chunkedUpload';
@@ -776,30 +776,30 @@ export default function TvAdsManager() {
 
             {/* Tabs & Content */}
             <Tabs value={tab} onValueChange={(val: any) => setTab(val)}>
-                <TabsList className="grid w-full sm:w-[840px] grid-cols-5">
-                    <TabsTrigger value="ads" className="gap-2">
-                        <ImageIcon className="h-4 w-4" />
-                        Grade ({ads.length})
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-auto gap-1 p-1">
+                    <TabsTrigger value="ads" className="gap-2 py-2">
+                        <ImageIcon className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Grade ({ads.length})</span>
                     </TabsTrigger>
-                    <TabsTrigger value="screens" className="gap-2">
-                        <Tv className="h-4 w-4" />
-                        TVs ({screens.length})
+                    <TabsTrigger value="screens" className="gap-2 py-2">
+                        <Tv className="h-4 w-4 shrink-0" />
+                        <span className="truncate">TVs ({screens.length})</span>
                     </TabsTrigger>
-                    <TabsTrigger value="design" className="gap-2">
-                        <Palette className="h-4 w-4" />
-                        Estúdio de Design
+                    <TabsTrigger value="design" className="gap-2 py-2">
+                        <Palette className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Estúdio de Design</span>
                     </TabsTrigger>
-                    <TabsTrigger value="analytics" className="gap-2">
-                        <BarChart3 className="h-4 w-4" />
-                        Estatísticas & Uptime
+                    <TabsTrigger value="analytics" className="gap-2 py-2">
+                        <BarChart3 className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Estatísticas</span>
                     </TabsTrigger>
-                    <TabsTrigger value="logs" className="gap-2">
-                        <FileText className="h-4 w-4" />
-                        Logs & Auditoria
+                    <TabsTrigger value="logs" className="gap-2 py-2">
+                        <FileText className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Logs & Auditoria</span>
                     </TabsTrigger>
-                    <TabsTrigger value="webhooks" className="gap-2">
-                        <Webhook className="h-4 w-4" />
-                        Webhooks & Status
+                    <TabsTrigger value="webhooks" className="gap-2 py-2">
+                        <BellRing className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Alertas & Links</span>
                     </TabsTrigger>
                 </TabsList>
 
@@ -1170,7 +1170,7 @@ export default function TvAdsManager() {
                                                                 className="text-[11px] text-primary hover:underline inline-flex items-center gap-1"
                                                             >
                                                                 <Activity className="h-3 w-3" />
-                                                                Ver Status JSON Público
+                                                                Ver situação ao vivo
                                                             </button>
                                                         </div>
                                                     </TableCell>
