@@ -2,7 +2,7 @@
  * TV Signage & Ads Service
  */
 
-import { apiGet, apiPut, apiDelete, apiPost, apiUpload } from '@/lib/api';
+import { api, apiGet, apiPut, apiPatch, apiDelete, apiPost, apiUpload } from '@/lib/api';
 import type {
     TvAd,
     TvScreenItem,
@@ -12,6 +12,13 @@ import type {
     TvAnalyticsResponse,
     TvDesignSettingsResponse,
     TvDesignTemplate,
+    TvPingPayload,
+    TvPingResponse,
+    TvWebhookItem,
+    TvWebhooksMeta,
+    TvWebhookDeliveryItem,
+    CreateTvWebhookPayload,
+    UpdateTvWebhookPayload,
 } from '@/types/tv.types';
 
 export const tvService = {
@@ -219,21 +226,99 @@ export const tvService = {
     },
 
     /**
-     * Heartbeat da TV com telemetria (Público)
+     * Atualizar configuração de monitoramento/orientação de uma tela (Admin)
      */
-    async ping(
-        slugOrToken: string,
-        data?: {
-            width?: number;
-            height?: number;
-            current_ad_id?: number;
-            current_ad_title?: string;
-            fps?: number;
-            uptime_seconds?: number;
-            offline_cached?: boolean;
-        }
-    ): Promise<{ success: boolean }> {
+    async updateScreen(
+        screenId: number,
+        payload: { monitoring_enabled?: boolean; orientation?: 'auto' | 'horizontal' | 'vertical' }
+    ): Promise<{ success: boolean; message: string; data: any }> {
+        return apiPatch(`/admin/tv/screens/${screenId}`, payload);
+    },
+
+    /**
+     * Listar webhooks configurados e metadados dos endpoints públicos (Admin)
+     */
+    async listWebhooks(): Promise<{ success: boolean; data: TvWebhookItem[]; meta: TvWebhooksMeta }> {
+        return apiGet('/admin/tv/webhooks');
+    },
+
+    /**
+     * Cadastrar webhook de saída (Admin)
+     */
+    async createWebhook(payload: CreateTvWebhookPayload): Promise<{ success: boolean; message: string; data: TvWebhookItem }> {
+        return apiPost('/admin/tv/webhooks', payload);
+    },
+
+    /**
+     * Atualizar webhook de saída (Admin)
+     */
+    async updateWebhook(id: number, payload: UpdateTvWebhookPayload): Promise<{ success: boolean; message: string; data: TvWebhookItem }> {
+        return apiPut(`/admin/tv/webhooks/${id}`, payload);
+    },
+
+    /**
+     * Excluir webhook de saída (Admin)
+     */
+    async deleteWebhook(id: number): Promise<{ success: boolean; message: string }> {
+        return apiDelete(`/admin/tv/webhooks/${id}`);
+    },
+
+    /**
+     * Testar entrega síncrona de um webhook (Admin)
+     */
+    async testWebhook(id: number): Promise<{ success: boolean; message: string; data: TvWebhookDeliveryItem }> {
+        return apiPost(`/admin/tv/webhooks/${id}/test`, {});
+    },
+
+    /**
+     * Listar histórico de entregas de webhooks (Admin)
+     */
+    async listWebhookDeliveries(params?: {
+        tv_webhook_id?: number;
+        event_type?: string;
+        status?: string;
+        screen_slug?: string;
+        per_page?: number;
+        page?: number;
+    }): Promise<{ success: boolean; data: TvWebhookDeliveryItem[]; meta: any }> {
+        return apiGet('/admin/tv/webhooks/deliveries', params || {});
+    },
+
+    /**
+     * Heartbeat da TV com telemetria completa (Público)
+     */
+    async ping(slugOrToken: string, data?: TvPingPayload): Promise<TvPingResponse> {
         return apiPost(`/tv/ping/${slugOrToken}`, data || {});
+    },
+
+    /**
+     * Desconexão graciosa via navigator.sendBeacon ao fechar/navegar para fora do player (Público)
+     */
+    sendDisconnectBeacon(slugOrToken: string, data: { device_id?: string; reason?: string; uptime_seconds?: number }): void {
+        const base = String(api.defaults.baseURL || import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '');
+        const url = `${base}/tv/disconnect/${encodeURIComponent(slugOrToken)}`;
+        const body = JSON.stringify(data);
+
+        try {
+            if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+                const blob = new Blob([body], { type: 'text/plain;charset=UTF-8' });
+                navigator.sendBeacon(url, blob);
+                return;
+            }
+        } catch {
+            // Fallback below
+        }
+
+        try {
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body,
+                keepalive: true,
+            }).catch(() => {});
+        } catch {
+            // Ignore during unload
+        }
     },
 
     /**
