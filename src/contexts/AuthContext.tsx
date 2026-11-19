@@ -1,3 +1,4 @@
+
 /**
  * Authentication Context
  * 
@@ -49,8 +50,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const queryClient = useQueryClient();
   const [isInitialized, setIsInitialized] = useState(false);
   const [currentStoreId, setCurrentStoreId] = useState<number | null>(() => {
-    // Restore from sessionStorage
-    const saved = sessionStorage.getItem('currentStoreId');
+    // Restore from localStorage
+    const saved = localStorage.getItem('currentStoreId');
     return saved ? parseInt(saved, 10) : null;
   });
   const { data: userData, isLoading: isLoadingUser, isError } = useCurrentUser();
@@ -77,19 +78,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (user?.stores?.length && !currentStoreId) {
       const firstStoreId = user.stores[0].id;
       setCurrentStoreId(firstStoreId);
-      sessionStorage.setItem('currentStoreId', String(firstStoreId));
+      localStorage.setItem('currentStoreId', String(firstStoreId));
     }
   }, [user, currentStoreId]);
 
   // Persist store selection
   const handleSetCurrentStoreId = useCallback((id: number) => {
     setCurrentStoreId(id);
-    sessionStorage.setItem('currentStoreId', String(id));
+    localStorage.setItem('currentStoreId', String(id));
   }, []);
 
   // Initialize token and set up unauthorized handler on mount
   useEffect(() => {
-    // Restore token from sessionStorage
+    // Restore token from localStorage
     initializeToken();
 
     // Set up handler for 401 errors
@@ -122,7 +123,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [user]);
 
   // Permission checking methods
-  const isSuperAdmin = user?.is_super_admin === true;
+  const isSuperAdmin = user?.is_super_admin === true || (Array.isArray(user?.roles) && user.roles.includes('super_admin'));
 
   const can = useCallback((permission: string): boolean => {
     // Super admin bypasses all permission checks

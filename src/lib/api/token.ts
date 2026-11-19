@@ -1,8 +1,8 @@
 /**
  * Secure Token Management
  * 
- * Uses memory as primary storage with sessionStorage as persistence layer.
- * Tokens are cleared when the browser tab is closed (more secure than localStorage).
+ * Uses memory as primary storage with localStorage as persistence layer.
+ * Tokens persist across tabs and page reloads within the same browser.
  */
 
 // In-memory token store (primary)
@@ -17,7 +17,7 @@ let onUnauthorizedCallback: (() => void) | null = null;
 const TOKEN_KEY = 'mc_auth_token';
 
 /**
- * Initialize token from sessionStorage.
+ * Initialize token from localStorage.
  * Should be called once on app mount.
  */
 export function initializeToken(): string | null {
@@ -26,12 +26,12 @@ export function initializeToken(): string | null {
   }
 
   try {
-    const stored = sessionStorage.getItem(TOKEN_KEY);
+    const stored = localStorage.getItem(TOKEN_KEY);
     if (stored) {
       memoryToken = stored;
     }
   } catch {
-    // sessionStorage not available (e.g., private browsing)
+    // localStorage not available (e.g., private browsing)
   }
 
   isInitialized = true;
@@ -64,10 +64,10 @@ export function setToken(token: string): void {
   memoryToken = token;
 
   try {
-    sessionStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(TOKEN_KEY, token);
   } catch {
-    // sessionStorage not available, token will only persist in memory
-    console.warn('sessionStorage not available. Token will not persist on page reload.');
+    // localStorage not available, token will only persist in memory
+    console.warn('localStorage not available. Token will not persist on page reload.');
   }
 }
 
@@ -78,7 +78,7 @@ export function clearToken(): void {
   memoryToken = null;
 
   try {
-    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
   } catch {
     // Ignore
   }
