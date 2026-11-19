@@ -113,6 +113,10 @@ const ClosureValidation = lazy(() => import("@/pages/admin/pdv/ClosureValidation
 // Hiper ERP Connection (Super Admin)
 const HiperConnection = lazy(() => import("@/pages/admin/hiper/HiperConnection"));
 
+// TV Signage & Ads (Admin + Public Standalone Player)
+const TvAdsManager = lazy(() => import("@/pages/admin/tv/TvAdsManager"));
+const TvPlayer = lazy(() => import("@/pages/tv/TvPlayer"));
+
 // Loading fallback component
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -140,6 +144,10 @@ const App = () => (
                   <ForgotPassword />
                 </GuestRoute>
               } />
+
+              {/* Standalone TV Player route - Public for TV Boxes */}
+              <Route path="/tv/:slug" element={<TvPlayer />} />
+              <Route path="/tv" element={<TvPlayer />} />
 
               {/* Public upload route - no auth required */}
               <Route path="/upload/:capaId" element={<CustomerUpload />} />
@@ -291,6 +299,18 @@ const App = () => (
                 <Route path="/admin/hiper/conexao" element={
                   <ProtectedRoute requiredRoles={['admin']}>
                     <HiperConnection />
+                  </ProtectedRoute>
+                } />
+
+                {/* TV Ads Management - Admin & Gerente */}
+                <Route path="/admin/tv" element={
+                  <ProtectedRoute requiredRoles={['admin', 'gerente']}>
+                    <TvAdsManager />
+                  </ProtectedRoute>
+                } />
+                <Route path="/config/tv" element={
+                  <ProtectedRoute requiredRoles={['admin', 'gerente']}>
+                    <TvAdsManager />
                   </ProtectedRoute>
                 } />
 

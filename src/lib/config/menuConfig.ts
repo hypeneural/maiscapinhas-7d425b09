@@ -414,6 +414,22 @@ export const menuSections: MenuSection[] = [
         ],
     },
 
+    // TV & Anúncios de Loja - Admin & Gerente
+    {
+        id: 'tv-signage',
+        title: 'TVs & Anúncios',
+        roles: ['admin', 'gerente'],
+        items: [
+            {
+                id: 'tv-ads',
+                label: 'Anúncios de Loja',
+                tooltip: 'Fotos e vídeos em exibição nas televisões',
+                icon: Tv,
+                path: '/admin/tv',
+            },
+        ],
+    },
+
     // Wheel Module - Super Admin Only
     {
         id: 'wheel',
@@ -500,11 +516,19 @@ export function filterMenuSections(
     hasMinRole: (r: Role) => boolean,
     isSuperAdmin: boolean = false
 ): MenuSection[] {
+    if (isSuperAdmin) {
+        return sections
+            .map((section) => ({
+                ...section,
+                items: [...section.items],
+            }))
+            .filter((section) => section.items.length > 0);
+    }
+
     return sections
         .filter((section) => {
-            // Super admin bypasses excludeRoles - they see EVERYTHING
             // For non-super admin, check excludeRoles
-            if (!isSuperAdmin && section.excludeRoles?.length) {
+            if (section.excludeRoles?.length) {
                 if (section.excludeRoles.some(hasRole)) return false;
             }
 
