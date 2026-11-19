@@ -5,7 +5,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { tvService } from '@/services/tv.service';
 import { toast } from 'sonner';
-import type { CreateTvAdPayload, UpdateTvAdPayload } from '@/types/tv.types';
+import type {
+    CreateTvAdPayload,
+    UpdateTvAdPayload,
+    CreateTvWebhookPayload,
+    UpdateTvWebhookPayload,
+} from '@/types/tv.types';
 
 export const tvAdsKeys = {
     all: ['admin', 'tv'] as const,
@@ -15,6 +20,8 @@ export const tvAdsKeys = {
     analytics: (params?: any) => [...tvAdsKeys.all, 'analytics', params] as const,
     design: () => [...tvAdsKeys.all, 'design'] as const,
     logs: (params?: any) => [...tvAdsKeys.all, 'logs', params] as const,
+    webhooks: () => [...tvAdsKeys.all, 'webhooks'] as const,
+    webhookDeliveries: (params?: any) => [...tvAdsKeys.all, 'webhook-deliveries', params] as const,
     playlist: (slugOrToken: string) => ['tv', 'playlist', slugOrToken] as const,
 };
 
@@ -243,14 +250,138 @@ export function useDeleteTvAd() {
 }
 
 /**
- * Obter playlist para o player de TV (com sincronização rápida a cada 3 segundos)
+ * Atualizar configuração de monitoramento/orientação de uma tela
+ */
+export function useUpdateTvScreen() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({
+            screenId,
+            payload,
+        }: {
+            screenId: number;
+            payload: { monitoring_enabled?: boolean; orientation?: 'auto' | 'horizontal' | 'vertical' };
+        }) => tvService.updateScreen(screenId, payload),
+        onSuccess: (res) => {
+            toast.success(res.message || 'Configuração da TV atualizada.');
+            queryClient.invalidateQueries({ queryKey: tvAdsKeys.screens() });
+        },
+        onError: (err: any) => {
+            toast.error(err?.message || 'Falha ao atualizar configuração da TV.');
+        },
+    });
+}
+
+/**
+ * Listar webhooks configurados e endpoints públicos Pull
+ */
+export function useTvWebhooks() {
+    return useQuery({
+        queryKey: tvAdsKeys.webhooks(),
+        queryFn: () => tvService.listWebhooks(),
+        refetchInterval: 30000,
+    });
+}
+
+/**
+ * Criar webhook Push
+ */
+export function useCreateTvWebhook() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (payload: CreateTvWebhookPayload) => tvService.createWebhook(payload),
+        onSuccess: (res) => {
+            toast.success(res.message || 'Alerta cadastrado com sucesso!');
+            queryClient.invalidateQueries({ queryKey: tvAdsKeys.webhooks() });
+        },
+        onError: (err: any) => {
+            toast.error(err?.message || 'Erro ao cadastrar alerta.');
+        },
+    });
+}
+
+/**
+ * Atualizar webhook Push
+ */
+export function useUpdateTvWebhook() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, payload }: { id: number; payload: UpdateTvWebhookPayload }) =>
+            tvService.updateWebhook(id, payload),
+        onSuccess: (res) => {
+            toast.success(res.message || 'Alerta atualizado com sucesso!');
+            queryClient.invalidateQueries({ queryKey: tvAdsKeys.webhooks() });
+        },
+        onError: (err: any) => {
+            toast.error(err?.message || 'Erro ao atualizar alerta.');
+        },
+    });
+}
+
+/**
+ * Remover webhook Push
+ */
+export function useDeleteTvWebhook() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (id: number) => tvService.deleteWebhook(id),
+        onSuccess: (res) => {
+            toast.success(res.message || 'Alerta removido com sucesso.');
+            queryClient.invalidateQueries({ queryKey: tvAdsKeys.webhooks() });
+        },
+        onError: (err: any) => {
+            toast.error(err?.message || 'Erro ao remover alerta.');
+        },
+    });
+}
+
+/**
+ * Testar webhook Push de forma síncrona
+ */
+export function useTestTvWebhook() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (id: number) => tvService.testWebhook(id),
+        onSuccess: (res) => {
+            toast.success(res.message || 'Envio de teste realizado com sucesso!');
+            queryClient.invalidateQueries({ queryKey: tvAdsKeys.webhooks() });
+            queryClient.invalidateQueries({ queryKey: [...tvAdsKeys.all, 'webhook-deliveries'] });
+        },
+        onError: (err: any) => {
+            toast.error(err?.message || 'Falha ao enviar o teste.');
+            queryClient.invalidateQueries({ queryKey: tvAdsKeys.webhooks() });
+            queryClient.invalidateQueries({ queryKey: [...tvAdsKeys.all, 'webhook-deliveries'] });
+        },
+    });
+}
+
+/**
+ * Histórico de entregas de webhooks
+ */
+export function useTvWebhookDeliveries(params?: { tv_webhook_id?: number; status?: string; per_page?: number }) {
+    return useQuery({
+        queryKey: tvAdsKeys.webhookDeliveries(params),
+        queryFn: () => tvService.listWebhookDeliveries(params),
+        refetchInterval: 15000,
+    });
+}
+
+/**
+ * Obter playlist para o player de TV (fallback de segurança a cada 120s;
+ * atualizações em tempo real são disparadas via playlist_version no ping de 30s).
  */
 export function useTvPlaylist(slugOrToken: string, enabled = true) {
     return useQuery({
         queryKey: tvAdsKeys.playlist(slugOrToken),
         queryFn: () => tvService.getPlaylist(slugOrToken),
         enabled: enabled && !!slugOrToken,
-        refetchInterval: 3000, // Sincronização ultra-rápida a cada 3 segundos
-        staleTime: 1000,
+        refetchInterval: 120000,
+        staleTime: 30000,
+        refetchOnWindowFocus: false,
     });
 }

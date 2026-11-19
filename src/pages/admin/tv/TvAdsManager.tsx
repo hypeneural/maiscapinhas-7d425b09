@@ -87,10 +87,13 @@ import {
     Calendar,
     Palette,
     Loader2,
+    BellRing,
+    AlertTriangle,
 } from 'lucide-react';
 import { uploadMediaChunked, type ChunkUploadProgress } from '@/lib/upload/chunkedUpload';
 import { TvStoreAnalytics } from './TvStoreAnalytics';
 import { TvDesignStudio } from './TvDesignStudio';
+import { TvWebhooksPanel } from './TvWebhooksPanel';
 import {
     useTvAds,
     useTvScreens,
@@ -146,6 +149,12 @@ function getEventConfig(event: string, level: string) {
                 badgeClass: 'bg-red-500/10 text-red-600 border-red-500/30',
                 icon: <ShieldAlert className="h-4 w-4 text-red-500 shrink-0" />,
             };
+        case 'tv_went_offline':
+            return {
+                title: 'TV Ficou Offline',
+                badgeClass: 'bg-rose-500/10 text-rose-600 border-rose-500/30',
+                icon: <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />,
+            };
         default:
             return {
                 title: event.replace(/_/g, ' ').toUpperCase(),
@@ -160,7 +169,7 @@ function getEventConfig(event: string, level: string) {
 }
 
 export default function TvAdsManager() {
-    const [tab, setTab] = useState<'ads' | 'screens' | 'analytics' | 'logs'>('ads');
+    const [tab, setTab] = useState<'ads' | 'screens' | 'design' | 'analytics' | 'logs' | 'webhooks'>('ads');
     const [search, setSearch] = useState('');
     const [storeFilter, setStoreFilter] = useState<string>('all');
     const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -767,26 +776,30 @@ export default function TvAdsManager() {
 
             {/* Tabs & Content */}
             <Tabs value={tab} onValueChange={(val: any) => setTab(val)}>
-                <TabsList className="grid w-full sm:w-[840px] grid-cols-5">
-                    <TabsTrigger value="ads" className="gap-2">
-                        <ImageIcon className="h-4 w-4" />
-                        Grade ({ads.length})
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-auto gap-1 p-1">
+                    <TabsTrigger value="ads" className="gap-2 py-2">
+                        <ImageIcon className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Grade ({ads.length})</span>
                     </TabsTrigger>
-                    <TabsTrigger value="screens" className="gap-2">
-                        <Tv className="h-4 w-4" />
-                        TVs ({screens.length})
+                    <TabsTrigger value="screens" className="gap-2 py-2">
+                        <Tv className="h-4 w-4 shrink-0" />
+                        <span className="truncate">TVs ({screens.length})</span>
                     </TabsTrigger>
-                    <TabsTrigger value="design" className="gap-2">
-                        <Palette className="h-4 w-4" />
-                        Estúdio de Design
+                    <TabsTrigger value="design" className="gap-2 py-2">
+                        <Palette className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Estúdio de Design</span>
                     </TabsTrigger>
-                    <TabsTrigger value="analytics" className="gap-2">
-                        <BarChart3 className="h-4 w-4" />
-                        Estatísticas & Uptime
+                    <TabsTrigger value="analytics" className="gap-2 py-2">
+                        <BarChart3 className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Estatísticas</span>
                     </TabsTrigger>
-                    <TabsTrigger value="logs" className="gap-2">
-                        <FileText className="h-4 w-4" />
-                        Logs & Auditoria
+                    <TabsTrigger value="logs" className="gap-2 py-2">
+                        <FileText className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Logs & Auditoria</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="webhooks" className="gap-2 py-2">
+                        <BellRing className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Alertas & Links</span>
                     </TabsTrigger>
                 </TabsList>
 
@@ -1052,20 +1065,38 @@ export default function TvAdsManager() {
                                         {screens.map((screen) => {
                                             const isOnline = screen.is_online;
                                             const isBlackout = screen.is_blackout;
+                                            const healthStatus = screen.health_status || (isBlackout ? 'standby' : isOnline ? 'online' : 'offline');
                                             const tvUrl = `${window.location.origin}/tv/${screen.slug}`;
+                                            const statusUrl = screen.public_status_url || `${window.location.origin}/api/v1/tv/status/${screen.slug}`;
+                                            const vpW = screen.display?.viewport_width;
+                                            const vpH = screen.display?.viewport_height;
+                                            const aspect = screen.display?.aspect_ratio;
+                                            const orientationPt = screen.display?.orientation_detected === 'portrait'
+                                                ? 'Vertical'
+                                                : screen.display?.orientation_detected === 'landscape'
+                                                    ? 'Horizontal'
+                                                    : null;
 
                                             return (
                                                 <TableRow key={screen.screen_id} className={isBlackout ? 'bg-muted/30 opacity-80' : ''}>
                                                     <TableCell className="font-semibold">
-                                                        <div className="flex items-center gap-2">
-                                                            <StoreIcon className="h-4 w-4 text-muted-foreground" />
-                                                            {screen.store_name}
+                                                        <div className="space-y-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <StoreIcon className="h-4 w-4 text-muted-foreground" />
+                                                                {screen.store_name}
+                                                            </div>
+                                                            {screen.store_hours?.status && screen.store_hours.status !== 'unknown' && (
+                                                                <span className={`inline-flex items-center text-[10px] font-normal px-1.5 py-0.5 rounded ${screen.store_hours.is_open_now ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
+                                                                    {screen.store_hours.is_open_now ? 'Loja Aberta' : 'Loja Fechada'}
+                                                                    {screen.store_hours.today_hours_label ? ` · ${screen.store_hours.today_hours_label}` : ''}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
                                                         <div className="space-y-1">
-                                                            <div className="flex items-center gap-2">
-                                                                {isBlackout ? (
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                {healthStatus === 'standby' || isBlackout ? (
                                                                     <Badge
                                                                         variant="outline"
                                                                         className="bg-zinc-800 text-zinc-300 border-zinc-700 gap-1"
@@ -1073,16 +1104,34 @@ export default function TvAdsManager() {
                                                                         <Moon className="h-3 w-3 text-amber-400" />
                                                                         ⚫ Standby (Desligada)
                                                                     </Badge>
+                                                                ) : healthStatus === 'degraded' ? (
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="bg-amber-500/10 text-amber-600 border-amber-500/30 gap-1"
+                                                                    >
+                                                                        <AlertTriangle className="h-3 w-3" />
+                                                                        🟡 Instável / Degradada
+                                                                    </Badge>
+                                                                ) : healthStatus === 'never_connected' ? (
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="bg-zinc-500/10 text-zinc-500 border-zinc-500/30"
+                                                                    >
+                                                                        ⚪ Nunca conectou
+                                                                    </Badge>
+                                                                ) : isOnline ? (
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="bg-green-500/10 text-green-600 border-green-500/30"
+                                                                    >
+                                                                        🟢 Online {screen.timing?.online_for_human ? `(${screen.timing.online_for_human})` : ''}
+                                                                    </Badge>
                                                                 ) : (
                                                                     <Badge
                                                                         variant="outline"
-                                                                        className={
-                                                                            isOnline
-                                                                                ? 'bg-green-500/10 text-green-600 border-green-500/30'
-                                                                                : 'bg-zinc-500/10 text-zinc-600 border-zinc-500/30'
-                                                                        }
+                                                                        className="bg-rose-500/10 text-rose-600 border-rose-500/30"
                                                                     >
-                                                                        {isOnline ? '🟢 Online' : '⚪ Desconectada'}
+                                                                        🔴 Offline {screen.timing?.offline_for_human ? `há ${screen.timing.offline_for_human}` : ''}
                                                                     </Badge>
                                                                 )}
 
@@ -1092,6 +1141,12 @@ export default function TvAdsManager() {
                                                                     </span>
                                                                 )}
                                                             </div>
+                                                            {vpW && vpH && (
+                                                                <p className="text-[11px] text-muted-foreground font-mono">
+                                                                    {vpW}×{vpH}{aspect ? ` (${aspect}${orientationPt ? ` ${orientationPt}` : ''})` : ''}
+                                                                    {screen.client?.device_label ? ` · ${screen.client.device_label}` : ''}
+                                                                </p>
+                                                            )}
                                                             {!isBlackout && isOnline && screen.current_ad_title && (
                                                                 <p className="text-xs text-muted-foreground truncate max-w-xs">
                                                                     ▶ Passando agora: <span className="font-medium text-foreground">{screen.current_ad_title}</span>
@@ -1105,9 +1160,19 @@ export default function TvAdsManager() {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <code className="text-xs bg-muted px-2 py-1 rounded font-mono select-all">
-                                                            {tvUrl}
-                                                        </code>
+                                                        <div className="space-y-1">
+                                                            <code className="text-xs bg-muted px-2 py-1 rounded font-mono select-all block">
+                                                                {tvUrl}
+                                                            </code>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => window.open(statusUrl, '_blank', 'noopener,noreferrer')}
+                                                                className="text-[11px] text-primary hover:underline inline-flex items-center gap-1"
+                                                            >
+                                                                <Activity className="h-3 w-3" />
+                                                                Ver situação ao vivo
+                                                            </button>
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex items-center justify-end gap-1.5">
@@ -1444,6 +1509,11 @@ export default function TvAdsManager() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+
+                {/* TAB 6: WEBHOOKS & STATUS PÚBLICO */}
+                <TabsContent value="webhooks" className="space-y-4">
+                    <TvWebhooksPanel stores={stores} />
+                </TabsContent>
             </Tabs>
 
             {/* MODAL DE EDIÇÃO DE ANÚNCIO (DURAÇÃO, TÍTULO, DESTINO, AGENDAMENTO) */}
@@ -1719,7 +1789,7 @@ export default function TvAdsManager() {
                     <div className="flex-1 bg-black rounded-lg overflow-hidden border border-zinc-800 relative">
                         {simulatorScreen && (
                             <iframe
-                                src={`/tv/${simulatorScreen}`}
+                                src={`/tv/${simulatorScreen}?preview=1`}
                                 className="w-full h-full border-0"
                                 title="TV Simulator"
                             />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
-import { useTvPlaylist } from '@/hooks/api/use-tv-ads';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTvPlaylist, tvAdsKeys } from '@/hooks/api/use-tv-ads';
 import { tvService } from '@/services/tv.service';
 import { preloadPlaylistAssets, getOptimizedMediaUrl, cacheTvAsset } from '@/services/tvCacheEngine';
 import type { TvPlaylistItem, TvDesignTemplate } from '@/types/tv.types';
@@ -18,15 +19,52 @@ import {
     TvBrandingLogoWidget,
 } from './widgets/TvOverlayWidgets';
 
+const TV_DEVICE_ID_KEY = 'mc_tv_device_id';
+const TV_APP_VERSION = '2026.11.19-health';
+
+function getOrCreateTvDeviceId(): string {
+    try {
+        const existing = localStorage.getItem(TV_DEVICE_ID_KEY);
+        if (existing) return existing;
+        const randomPart =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                ? crypto.randomUUID().slice(0, 12)
+                : Math.random().toString(36).slice(2, 14);
+        const created = `tvbox-${randomPart}`;
+        localStorage.setItem(TV_DEVICE_ID_KEY, created);
+        return created;
+    } catch {
+        return 'tvbox-ephemeral';
+    }
+}
+
+function detectLaunchMode(): string {
+    try {
+        if (window.self !== window.top) return 'iframe';
+        if (/;\s*wv\)/i.test(navigator.userAgent)) return 'android_webview';
+        if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+            return 'pwa_standalone';
+        }
+        if (document.fullscreenElement) return 'fullscreen';
+    } catch {
+        // Fallback
+    }
+    return 'browser_tab';
+}
+
 export function TvPlayer() {
     const { slug } = useParams<{ slug: string }>();
+    const [searchParams] = useSearchParams();
+    const queryClient = useQueryClient();
     const screenSlug = slug || 'tv-default';
+    const isPreview = searchParams.get('preview') === '1';
 
-    // 1. Carregar playlist com polling inteligente
+    // 1. Carregar playlist (fallback 120s; atualizações em tempo real vêm via playlist_version no ping de 30s)
     const { data: playlistData, isLoading, isError } = useTvPlaylist(screenSlug);
 
     const rawPlaylist = playlistData?.data?.playlist;
     const playlistJson = JSON.stringify(rawPlaylist || []);
+    const playlistVersion = playlistData?.data?.playlist_version || null;
 
     // Memoização estável da playlist para evitar re-render no polling periódico
     const playlist: TvPlaylistItem[] = useMemo(() => {
@@ -39,7 +77,9 @@ export function TvPlayer() {
     const [isBlackout, setIsBlackout] = useState(false);
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [cursorVisible, setCursorVisible] = useState(true);
-    const [uptimeSeconds, setUptimeSeconds] = useState(0);
+
+    const deviceIdRef = useRef<string>(getOrCreateTvDeviceId());
+    const uptimeSecondsRef = useRef<number>(0);
 
     const designTemplate: TvDesignTemplate | undefined = playlistData?.data?.design_template;
     const storeName = playlistData?.data?.screen?.store_name || 'Mais Capinhas';
@@ -57,6 +97,24 @@ export function TvPlayer() {
 
     const playlistRef = useRef(playlist);
     playlistRef.current = playlist;
+
+    // Refs para evitar recriação do setInterval de heartbeat a cada segundo!
+    const currentItemRef = useRef(currentItem);
+    currentItemRef.current = currentItem;
+    const isBlackoutRef = useRef(isBlackout);
+    isBlackoutRef.current = isBlackout;
+    const isOfflineRef = useRef(isOffline);
+    isOfflineRef.current = isOffline;
+    const isPausedRef = useRef(isPaused);
+    isPausedRef.current = isPaused;
+    const isLoadingRef = useRef(isLoading);
+    isLoadingRef.current = isLoading;
+    const isErrorRef = useRef(isError);
+    isErrorRef.current = isError;
+    const playlistVersionRef = useRef<string | null>(playlistVersion);
+    playlistVersionRef.current = playlistVersion;
+    const hasPlaylistRef = useRef<boolean>(Boolean(playlistData?.data?.playlist));
+    hasPlaylistRef.current = Boolean(playlistData?.data?.playlist);
 
     // 2. Sincronizar estado de Standby / Blackout com o backend
     useEffect(() => {
@@ -79,32 +137,117 @@ export function TvPlayer() {
         };
     }, []);
 
-    // 4. Contador de Uptime
+    // 4. Contador de Uptime em Ref (sem re-render a cada segundo!)
     useEffect(() => {
         const uptimeInterval = setInterval(() => {
-            setUptimeSeconds((prev) => prev + 1);
+            uptimeSecondsRef.current += 1;
         }, 1000);
         return () => clearInterval(uptimeInterval);
     }, []);
 
-    // 5. Envio de Ping com Telemetria (a cada 30 segundos)
+    // 5. Envio de Ping com Telemetria Rica (fixo a cada 30s — ignora modo ?preview=1)
+    const sendHeartbeat = useCallback(() => {
+        if (isPreview) return;
+
+        const item = currentItemRef.current;
+        const blackout = isBlackoutRef.current;
+        const offline = isOfflineRef.current;
+        const paused = isPausedRef.current;
+        const listLen = playlistRef.current.length;
+
+        const playerState = blackout
+            ? 'standby'
+            : isErrorRef.current
+                ? 'error'
+                : isLoadingRef.current
+                    ? 'loading'
+                    : paused
+                        ? 'paused'
+                        : listLen === 0
+                            ? 'empty_playlist'
+                            : 'playing';
+
+        const screenOrientation = window.screen?.orientation;
+
+        tvService.ping(screenSlug, {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            screen_width: window.screen?.width,
+            screen_height: window.screen?.height,
+            dpr: window.devicePixelRatio || 1,
+            orientation_angle: typeof screenOrientation?.angle === 'number' ? screenOrientation.angle : undefined,
+            orientation_type: screenOrientation?.type || undefined,
+            launch_mode: detectLaunchMode(),
+            launch_path: window.location.pathname,
+            referrer: document.referrer || null,
+            device_id: deviceIdRef.current,
+            player_state: playerState,
+            visibility_state: document.visibilityState,
+            network_online: navigator.onLine,
+            app_version: TV_APP_VERSION,
+            playlist_version: playlistVersionRef.current,
+            playlist_count: listLen,
+            current_ad_id: blackout ? undefined : item?.id,
+            current_ad_title: blackout ? '[TV Desligada / Standby]' : item?.title,
+            fps: blackout ? 0 : 60,
+            uptime_seconds: uptimeSecondsRef.current,
+            offline_cached: offline || !hasPlaylistRef.current,
+        }).then((res) => {
+            if (!res) return;
+
+            if (typeof res.is_blackout === 'boolean' && res.is_blackout !== isBlackoutRef.current) {
+                setIsBlackout(res.is_blackout);
+            }
+
+            // Sincronização inteligente: recarrega a playlist apenas se a versão mudou no backend
+            if (res.playlist_version && playlistVersionRef.current && res.playlist_version !== playlistVersionRef.current) {
+                queryClient.invalidateQueries({ queryKey: tvAdsKeys.playlist(screenSlug) });
+            }
+        }).catch(() => {});
+    }, [isPreview, queryClient, screenSlug]);
+
+    // Intervalo fixo de 30s (independente de uptimeSeconds ou troca de slide!)
     useEffect(() => {
-        const sendPing = () => {
-            tvService.ping(screenSlug, {
-                width: window.innerWidth,
-                height: window.innerHeight,
-                current_ad_id: isBlackout ? undefined : currentItem?.id,
-                current_ad_title: isBlackout ? '[TV Desligada / Standby]' : currentItem?.title,
-                fps: isBlackout ? 0 : 60,
-                uptime_seconds: uptimeSeconds,
-                offline_cached: isOffline || !playlistData?.data?.playlist,
-            }).catch(() => {});
+        if (isPreview) return;
+
+        sendHeartbeat();
+        const pingInterval = setInterval(sendHeartbeat, 30000);
+        return () => clearInterval(pingInterval);
+    }, [isPreview, sendHeartbeat]);
+
+    // Ping imediato apenas ao mudar blackout ou recuperar rede (pula o mount inicial)
+    const didMountStatePingRef = useRef(false);
+    useEffect(() => {
+        if (!didMountStatePingRef.current) {
+            didMountStatePingRef.current = true;
+            return;
+        }
+        if (isPreview) return;
+        sendHeartbeat();
+    }, [isBlackout, isOffline, isPreview, sendHeartbeat]);
+
+    // 5b. Desconexão graciosa imediata ao fechar navegador/WebView (pagehide / beforeunload)
+    useEffect(() => {
+        if (isPreview) return;
+
+        let beaconSent = false;
+        const handleUnload = () => {
+            if (beaconSent) return;
+            beaconSent = true;
+            tvService.sendDisconnectBeacon(screenSlug, {
+                device_id: deviceIdRef.current,
+                reason: 'pagehide',
+                uptime_seconds: uptimeSecondsRef.current,
+            });
         };
 
-        sendPing();
-        const pingInterval = setInterval(sendPing, 30000);
-        return () => clearInterval(pingInterval);
-    }, [screenSlug, currentItem?.id, currentItem?.title, uptimeSeconds, isOffline, isBlackout, playlistData]);
+        window.addEventListener('pagehide', handleUnload);
+        window.addEventListener('beforeunload', handleUnload);
+        return () => {
+            window.removeEventListener('pagehide', handleUnload);
+            window.removeEventListener('beforeunload', handleUnload);
+        };
+    }, [isPreview, screenSlug]);
 
     // 6. Ocultar cursor do mouse após 3 segundos de inatividade
     useEffect(() => {
@@ -133,7 +276,7 @@ export function TvPlayer() {
         const currentIdx = currentIndexRef.current;
         const currentAd = currentList[currentIdx];
 
-        if (currentAd) {
+        if (currentAd && !isPreview) {
             const durationPlayed = Math.round((Date.now() - slideStartedAtRef.current) / 1000);
             tvService.logImpression(screenSlug, {
                 tv_ad_id: currentAd.id,
@@ -153,7 +296,7 @@ export function TvPlayer() {
             slideStartedAtRef.current = Date.now();
             setIsTransitioning(false);
         }, 400);
-    }, [isPaused, isBlackout, screenSlug]);
+    }, [isPaused, isBlackout, isPreview, screenSlug]);
 
     // 8. Pre-cache Inteligente de Playlist e Preloader Antecipado
     useEffect(() => {
@@ -254,11 +397,13 @@ export function TvPlayer() {
         const err = target.error;
         console.error('[TvPlayer] Erro no vídeo:', err?.code, err?.message, currentItem?.url);
 
-        tvService.logError(screenSlug, {
-            message: `Erro ao reproduzir vídeo (Código ${err?.code || 'desconhecido'}): ${currentItem?.url}`,
-            url: currentItem?.url,
-            type: 'video',
-        }).catch(() => {});
+        if (!isPreview) {
+            tvService.logError(screenSlug, {
+                message: `Erro ao reproduzir vídeo (Código ${err?.code || 'desconhecido'}): ${currentItem?.url}`,
+                url: currentItem?.url,
+                type: 'video',
+            }).catch(() => {});
+        }
         advanceToNext(false);
     };
 
