@@ -2,13 +2,16 @@
  * TV Signage & Ads Service
  */
 
-import { apiGet, apiPut, apiDelete, apiPost } from '@/lib/api';
+import { apiGet, apiPut, apiDelete, apiPost, apiUpload } from '@/lib/api';
 import type {
     TvAd,
     TvScreenItem,
     TvPlaylistResponse,
     CreateTvAdPayload,
     UpdateTvAdPayload,
+    TvAnalyticsResponse,
+    TvDesignSettingsResponse,
+    TvDesignTemplate,
 } from '@/types/tv.types';
 
 export const tvService = {
@@ -194,23 +197,7 @@ export const tvService = {
      * Upload de Logomarca para o Estúdio de Design (Admin)
      */
     async uploadLogo(file: File): Promise<{ success: boolean; message: string; data: { url: string; path: string } }> {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const response = await fetch(`${API_BASE_URL}/admin/tv/design/upload-logo`, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${getAuthToken()}`,
-            },
-            body: formData,
-        });
-
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data?.message || 'Falha ao enviar logomarca.');
-        }
-
-        return data;
+        return apiUpload('/admin/tv/design/upload-logo', file, 'file');
     },
 
     /**
