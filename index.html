@@ -10,13 +10,14 @@
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-      font-src 'self' https://fonts.gstatic.com;
+      font-src 'self' data: https://fonts.gstatic.com;
       img-src 'self' data: https: blob:;
-      connect-src 'self' https://api.maiscapinhas.com.br https://viacep.com.br wss:;
-      media-src 'self' blob:;
+      connect-src 'self' https://api.maiscapinhas.com.br https://viacep.com.br wss: https://*.ably.io https://*.ably-realtime.com https://static.cloudflareinsights.com;
+      media-src 'self' https: data: blob: https://api.maiscapinhas.com.br;
       worker-src 'self' blob:;
+      frame-src 'self' https:;
       form-action 'self';
       base-uri 'self';
     " />
