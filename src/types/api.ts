@@ -179,6 +179,15 @@ export interface CurrentUserResponse {
     /** Permissions expiring soon (< 7 days) */
     expiring_soon?: ExpiringPermission[];
 
+    /** Whether the user has active temporary permissions */
+    has_temporary_permissions?: boolean;
+
+    /** Number of active temporary permissions */
+    temporary_count?: number;
+
+    /** Number of permissions expiring soon */
+    expiring_count?: number;
+
     /** Dashboard layout configuration */
     dashboard_layout?: DashboardLayout;
 }
@@ -729,6 +738,114 @@ export interface CashIntegrityData {
     };
 
     alerts: CashAlert[];
+}
+
+/**
+ * Per-store summary entry in global cash integrity report
+ */
+export interface StoreIntegritySummary {
+    store_id: number;
+    store_name: string;
+    cash_break_percentage: number;
+    status: 'GREEN' | 'YELLOW' | 'RED';
+    total_divergence: number;
+    total_system_value: number;
+    total_real_value: number;
+    completion_rate: number;
+    shifts_total: number;
+    shifts_closed: number;
+    pending_approval: number;
+    divergence_lines: number;
+    justified_count: number;
+    unjustified_count: number;
+    prev_cash_break_percentage?: number;
+    delta_break_pct?: number;
+    prev_total_divergence?: number;
+    delta_divergence?: number;
+    trend?: 'UP' | 'DOWN' | 'STABLE';
+}
+
+/**
+ * Global cash integrity report data from /reports/cash-integrity-global
+ */
+export interface GlobalCashIntegrityData {
+    period: string;
+    prev_period?: string;
+    store_count: number;
+
+    global: {
+        total_system_value: number;
+        total_real_value: number;
+        total_divergence: number;
+        cash_break_percentage: number;
+        status: 'GREEN' | 'YELLOW' | 'RED';
+        total_shifts: number;
+        closed_count: number;
+        pending_approval: number;
+        completion_rate: number;
+        total_divergences: number;
+        justified_count: number;
+        unjustified_count: number;
+        justified_rate: number;
+        prev_cash_break_percentage?: number;
+        delta_break_pct?: number;
+        prev_total_divergence?: number;
+        delta_divergence?: number;
+        trend?: 'UP' | 'DOWN' | 'STABLE';
+    };
+
+    by_store: StoreIntegritySummary[];
+
+    alerts: Array<CashAlert & {
+        store_id: number;
+        store_name: string;
+    }>;
+
+    top_drivers?: {
+        by_payment_method: Array<{
+            label: string;
+            total_abs_divergence: number;
+            total_divergence: number;
+            occurrences: number;
+        }>;
+        by_seller: Array<{
+            user_id: number;
+            user_name: string;
+            total_abs_divergence: number;
+            total_divergence: number;
+            occurrences: number;
+        }>;
+        top_shifts: Array<{
+            shift_id: number;
+            store_id: number;
+            store_name: string;
+            date: string;
+            shift_code: string;
+            seller_name: string;
+            total_abs_divergence: number;
+            total_divergence: number;
+        }>;
+        sellers_by_store?: Record<string, Array<{
+            user_id: number;
+            user_name: string;
+            total_abs_divergence: number;
+            total_divergence: number;
+            occurrences: number;
+        }>>;
+    };
+
+    comparison?: {
+        prev_period: string;
+        prev_global: GlobalCashIntegrityData['global'];
+    };
+
+    meta: {
+        generated_at: string;
+        query_ms: number;
+        stores_count: number;
+        stores_with_data: number;
+        data_completeness: number;
+    };
 }
 
 /**

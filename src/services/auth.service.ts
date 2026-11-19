@@ -37,7 +37,7 @@ export async function login(credentials: LoginCredentials): Promise<User> {
         device_name: credentials.device_name || `web-${navigator.userAgent.slice(0, 50)}`,
     });
 
-    // Store the token securely in sessionStorage
+    // Store the token securely in localStorage
     setToken(response.data.token);
 
     return response.data.user;
@@ -54,7 +54,7 @@ export async function logout(): Promise<void> {
         // Always clear token, even if API call fails
         clearToken();
         // Also clear store selection
-        sessionStorage.removeItem('currentStoreId');
+        localStorage.removeItem('currentStoreId');
     }
 }
 
@@ -66,23 +66,38 @@ export async function logoutAll(): Promise<void> {
         await apiPost('/auth/logout-all');
     } finally {
         clearToken();
-        sessionStorage.removeItem('currentStoreId');
+        localStorage.removeItem('currentStoreId');
     }
 }
 
 /**
- * Get current authenticated user with their stores
+ * Get current authenticated user with their stores and permissions
  * 
- * Backend returns: { data: { user: {...}, stores: [...] } }
+ * Backend returns: { data: { user: {...}, stores: [...], permissions: [...] } }
  * We merge this into a single UserWithStores object for convenience
  */
-export async function getCurrentUser(): Promise<UserWithStores> {
+export async function getCurrentUser(): Promise<UserWithStores & {
+    permissions?: string[];
+    temporary_permissions?: any[];
+    expiring_soon?: any[];
+    has_temporary_permissions?: boolean;
+    temporary_count?: number;
+    expiring_count?: number;
+    dashboard_layout?: any;
+}> {
     const response = await apiGet<ApiResponse<CurrentUserResponse>>('/me');
 
-    // Merge user and stores into a single object
+    // Merge user, stores and permissions into a single object
     return {
         ...response.data.user,
-        stores: response.data.stores,
+        stores: response.data.stores || [],
+        permissions: response.data.permissions || [],
+        temporary_permissions: response.data.temporary_permissions || [],
+        expiring_soon: response.data.expiring_soon || [],
+        has_temporary_permissions: response.data.has_temporary_permissions,
+        temporary_count: response.data.temporary_count,
+        expiring_count: response.data.expiring_count,
+        dashboard_layout: response.data.dashboard_layout,
     };
 }
 

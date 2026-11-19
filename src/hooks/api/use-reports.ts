@@ -10,6 +10,7 @@ import {
     getConsolidatedPerformance,
     getStorePerformance,
     getCashIntegrity,
+    getGlobalCashIntegrity,
     getBirthdays,
     getUserKpis
 } from '@/services/reports.service';
@@ -26,6 +27,8 @@ export const reportsKeys = {
         [...reportsKeys.all, 'store-performance', storeId, month] as const,
     cashIntegrity: (storeId: number, month?: string) =>
         [...reportsKeys.all, 'cash-integrity', storeId, month] as const,
+    cashIntegrityGlobal: (month?: string) =>
+        [...reportsKeys.all, 'cash-integrity-global', month] as const,
     birthdays: (month?: number, storeId?: number) =>
         [...reportsKeys.all, 'birthdays', month, storeId] as const,
     userKpis: (filters?: UserKpisFilters) =>
@@ -40,7 +43,7 @@ export function useRanking(filters: RankingFilters = {}) {
     return useQuery({
         queryKey: reportsKeys.ranking(filters),
         queryFn: () => getRanking(filters),
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: 1000 * 60 * 5,
     });
 }
 
@@ -72,16 +75,27 @@ export function useStorePerformance(storeId: number, month?: string) {
 }
 
 /**
- * Hook to get cash integrity report
- * Used by /gestao/quebra page
- * @param storeId - Required store ID
- * @param month - Optional month in YYYY-MM format
+ * Hook to get cash integrity report (per-store)
+ * Used by /gestao/quebra page when a store is selected
  */
 export function useCashIntegrity(storeId: number, month?: string) {
     return useQuery({
         queryKey: reportsKeys.cashIntegrity(storeId, month),
         queryFn: () => getCashIntegrity(storeId, month),
         enabled: !!storeId,
+        staleTime: 1000 * 60 * 5,
+    });
+}
+
+/**
+ * Hook to get GLOBAL cash integrity report (all stores aggregated)
+ * Used by /gestao/quebra page on initial load (no store selected)
+ * @param month - Optional month in YYYY-MM format (defaults to current month)
+ */
+export function useGlobalCashIntegrity(month?: string) {
+    return useQuery({
+        queryKey: reportsKeys.cashIntegrityGlobal(month),
+        queryFn: () => getGlobalCashIntegrity(month),
         staleTime: 1000 * 60 * 5,
     });
 }
@@ -95,7 +109,7 @@ export function useBirthdays(month?: number, storeId?: number) {
     return useQuery({
         queryKey: reportsKeys.birthdays(month, storeId),
         queryFn: () => getBirthdays(month, storeId),
-        staleTime: 1000 * 60 * 30, // Birthdays don't change often
+        staleTime: 1000 * 60 * 30,
     });
 }
 
@@ -108,7 +122,6 @@ export function useUserKpis(filters: UserKpisFilters = {}) {
     return useQuery({
         queryKey: reportsKeys.userKpis(filters),
         queryFn: () => getUserKpis(filters),
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: 1000 * 60 * 5,
     });
 }
-

@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { format, subDays, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { getSaoPauloDateKey } from '@/lib/datetime';
 import { getStores } from '@/services/stores.service';
 import { getStoreSellers, getStorePaymentMethods } from '@/services/reports.service';
 import { getStoreIdentifier, resolveStoreIdentifierForReports } from '@/lib/store-identifiers';
@@ -39,6 +40,30 @@ interface OperacoesFiltersProps {
     isLoading?: boolean;
 }
 
+const toLocalNoonFromDateKey = (dateKey: string): Date => new Date(`${dateKey}T12:00:00`);
+const getTodayInSaoPaulo = (): Date => toLocalNoonFromDateKey(getSaoPauloDateKey());
+
+const resolvePresetRange = (preset: 'today' | 'yesterday' | '7days' | '30days' | 'month'): DateRange => {
+    const today = getTodayInSaoPaulo();
+
+    switch (preset) {
+        case 'today':
+            return { from: today, to: today };
+        case 'yesterday': {
+            const yesterday = subDays(today, 1);
+            return { from: yesterday, to: yesterday };
+        }
+        case '7days':
+            return { from: subDays(today, 6), to: today };
+        case '30days':
+            return { from: subDays(today, 29), to: today };
+        case 'month':
+            return { from: startOfMonth(today), to: today };
+        default:
+            return { from: today, to: today };
+    }
+};
+
 export const OperacoesFilters: React.FC<OperacoesFiltersProps> = ({
     filters, onFilterChange, isLoading,
 }) => {
@@ -47,8 +72,8 @@ export const OperacoesFilters: React.FC<OperacoesFiltersProps> = ({
 
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
-        from: filters.from ? new Date(filters.from + 'T00:00:00') : new Date(),
-        to: filters.to ? new Date(filters.to + 'T00:00:00') : new Date(),
+        from: filters.from ? toLocalNoonFromDateKey(filters.from) : getTodayInSaoPaulo(),
+        to: filters.to ? toLocalNoonFromDateKey(filters.to) : getTodayInSaoPaulo(),
     });
 
     // ── Data Sources ──
@@ -136,20 +161,11 @@ export const OperacoesFilters: React.FC<OperacoesFiltersProps> = ({
     };
 
     const setDatePreset = (preset: 'today' | 'yesterday' | '7days' | '30days' | 'month') => {
-        const today = new Date();
-        let from: Date, to: Date;
-        switch (preset) {
-            case 'today': from = today; to = today; break;
-            case 'yesterday': from = subDays(today, 1); to = subDays(today, 1); break;
-            case '7days': from = subDays(today, 6); to = today; break;
-            case '30days': from = subDays(today, 29); to = today; break;
-            case 'month': from = startOfMonth(today); to = today; break;
-        }
-        setDateRange({ from, to });
+        setDateRange(resolvePresetRange(preset));
     };
 
     const clearFilters = () => {
-        const today = new Date();
+        const today = getTodayInSaoPaulo();
         setDateRange({ from: today, to: today });
         onFilterChange({
             page: 1,
@@ -216,13 +232,7 @@ export const OperacoesFilters: React.FC<OperacoesFiltersProps> = ({
                         className={cn(
                             "h-7 text-xs rounded-full px-3 transition-all",
                             // Highlight if matches
-                            filters.from === format(
-                                key === 'today' ? new Date() :
-                                    key === 'yesterday' ? subDays(new Date(), 1) :
-                                        key === '7days' ? subDays(new Date(), 6) :
-                                            key === '30days' ? subDays(new Date(), 29) :
-                                                startOfMonth(new Date()),
-                                'yyyy-MM-dd') &&
+                            filters.from === format(resolvePresetRange(key).from!, 'yyyy-MM-dd') &&
                             "bg-primary text-primary-foreground hover:bg-primary/90"
                         )}
                         onClick={() => setDatePreset(key)}

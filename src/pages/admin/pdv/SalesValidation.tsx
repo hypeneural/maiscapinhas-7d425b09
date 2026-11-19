@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Sales Validation Page
  * 
  * Allows admins to validate a raw ERP sales JSON against the database.

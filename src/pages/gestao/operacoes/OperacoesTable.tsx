@@ -12,9 +12,8 @@ import {
 import {
     Loader2, ChevronRight, ChevronLeft, ShoppingCart,
 } from "lucide-react";
+import { parseApiDateTimeToDate, SAO_PAULO_TIMEZONE } from '@/lib/datetime';
 import { formatCurrency } from '@/lib/format';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import type { Operacao, OperacoesResponse } from '@/types/pdv-operacoes.types';
 import { getChannelVisual, getPaymentVisual, getStatusVisual, getTypeVisual } from './operacaoVisuals';
@@ -106,12 +105,18 @@ const PaymentBadge: React.FC<{ meioPagamento: string | null }> = ({ meioPagament
 
 // ── Format datetime ──
 function formatOperacaoDateTime(isoString: string): string {
-    try {
-        const d = parseISO(isoString);
-        return format(d, "dd/MM HH:mm", { locale: ptBR });
-    } catch {
-        return '—';
-    }
+    const parsed = parseApiDateTimeToDate(isoString);
+    if (!parsed) return '—';
+
+    return parsed
+        .toLocaleString('pt-BR', {
+            timeZone: SAO_PAULO_TIMEZONE,
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+        })
+        .replace(',', '');
 }
 
 export const OperacoesTable: React.FC<OperacoesTableProps> = ({
